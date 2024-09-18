@@ -1,0 +1,13 @@
+#Ignore dirs
+data/
+src/.old/
+src/.temp
+
+
+#Ignore file types
+*.jpg
+*.bag
+
+
+#Ignore other files
+world/nhat.world
