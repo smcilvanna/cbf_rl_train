@@ -26,15 +26,21 @@ class topicQueue:                                       # Class to create a queu
 #######################################################################################################################
 
 def get_test_set():         # Get the test set from the trainer
-    cbf_gammas = np.linspace(0.1, 2.0, 20)
-    obs_radii = np.arange(0.5, 5.0, 0.5)
+    # cbf_gammas = np.linspace(0.1, 2.0, 20)
+    # obs_radii = np.arange(0.5, 5.0, 0.5)
     
-    # cbf_gammas = np.linspace(0.05, 0.1, 5)
-    # obs_radii = np.arange(2.5, 5.0, 0.5)
+    cbf_gammas = np.ones(3)*0.1
+    # obs_radii = np.ones(2)*1.5
+    obs_radii = np.array([1.5, 2.5, 3.5, 4.5, 5.5])
     
     grid1, grid2 = np.meshgrid(cbf_gammas, obs_radii)
     combinations = np.column_stack([grid1.ravel(), grid2.ravel()])
+    
+    combinations = np.row_stack([combinations, combinations, combinations])
+    
     print("[TRAINER] Test Array Shape : ", combinations.shape) 
+    
+    
     return combinations
 
 # response = []

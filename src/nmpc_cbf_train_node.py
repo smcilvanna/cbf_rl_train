@@ -110,7 +110,8 @@ class NMPC_CBF_Terminal:
         self.opt.subject_to(self.opt.bounded(self.min_omega, omega, self.max_omega))
         
         # setup optimization parameters
-        opts_setting = {'ipopt.max_iter':2000,'ipopt.print_level':0,'print_time':0,'ipopt.acceptable_tol':1e-8,'ipopt.acceptable_obj_change_tol':1e-6}
+        opts_setting = {'ipopt.max_iter':200,'ipopt.print_level':0,'print_time':0,'ipopt.acceptable_tol':1e-8,'ipopt.acceptable_obj_change_tol':1e-6}
+        #max iter was 2000
         self.opt.solver('ipopt', opts_setting)
     
     def solve(self, next_trajectories, next_controls):
