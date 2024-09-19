@@ -31,6 +31,9 @@
     </include>
 
 
+    <!-- RQT-Console -->
+    <!-- <node pkg="rqt_console" type="rqt_console" name="rqt_console" output="screen" /> -->
+
     <!-- Dummy Trainer -->
     <node pkg="cbf_rl_train" type="dummy_trainer.py" name="dummy_trainer" output="screen" />
     

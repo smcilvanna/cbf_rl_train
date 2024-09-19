@@ -12,6 +12,11 @@ from tf.transformations import euler_from_quaternion
 import subprocess
 import signal
 import os
+import atexit
+
+# ###################################################################################################
+# CLASS DEFINITIONS                                                                                           
+# ###################################################################################################
 
 class NMPC_CBF_Terminal:
     def __init__(self, init_pos, limitation, DT, N, W_q, W_r, W_v, cbf_gamma, SO):
@@ -109,20 +114,33 @@ class NMPC_CBF_Terminal:
         self.opt.solver('ipopt', opts_setting)
     
     def solve(self, next_trajectories, next_controls):
-        ## update feedback state and reference
-        self.opt.set_value(self.x_ref, next_trajectories)
-        self.opt.set_value(self.u_ref, next_controls)
-        ## provide the initial guess of state and control input for the next step
-        self.opt.set_initial(self.opt_states, self.next_states)
-        self.opt.set_initial(self.opt_controls, self.u0)       
+        
+        self.opt.set_value(self.x_ref, next_trajectories)       # update feedback state and reference
+        self.opt.set_value(self.u_ref, next_controls)           # update feedback control and reference
+        
+        self.opt.set_initial(self.opt_states, self.next_states) # provide the initial guess of state for the next step
+        self.opt.set_initial(self.opt_controls, self.u0)        # provide the initial guess of control for the next step       
         ## solve the problem
-        sol = self.opt.solve()       
+        sol = self.opt.solve()
+        
+        if sol.stats()['return_status'] != 'Solve_Succeeded':
+            kenny_loggins(f"[NPMC-solver]: ERROR! Solver return status: {sol.stats()['return_status']}")      
+        
         ## obtain the control input
         new_u0 = sol.value(self.opt_controls)
         self.u0[:-1, :] = new_u0[1:, :]
         self.u0[-1, :] = new_u0[-1, :]
         self.next_states = sol.value(self.opt_states)
         return new_u0[0,:]
+
+    def reset_nmpc(self, obstacle, cbf_gamma):               # Reset the NMPC for the next episode
+        self.u0 = np.zeros((N, 2))                                          # Reset NMPC internal control variable !! Must do this when resetting the episode or the NMPC will cry
+        self.next_states = np.zeros((N+1, 3))                               # Reset NMPC internal state variable  !!  Must do this when resetting the episode or the NMPC will cry
+        self.SO = obstacle                                                  # Set the obstacle parameter for NMPC
+        self.cbf_gamma = cbf_gamma                                          # Set the CBF parameter for NMPC
+        self.n_SO = len(obstacle[:, 0])
+
+        return
 
 class RosbagRecorder:
     def __init__(self):
@@ -134,7 +152,7 @@ class RosbagRecorder:
 
     def init_dir(self):
         if not os.path.exists(self.rec_dir):                    # Check if the base directory exists
-            print("[ERROR!] Rosbag Directory does not exist")       # debug
+            kenny_loggins("[NMPC-rosbag]: ERROR! Rosbag Directory does not exist")       # debug
             exit()                                               # Exit if the directory does not exist
         directories = [d for d in os.listdir(self.rec_dir) if os.path.isdir(os.path.join(self.rec_dir, d))]     # Get the list of directories
         if directories:                                                                                         # If directories exist
@@ -154,9 +172,10 @@ class RosbagRecorder:
     def start_recording(self, cbf_gamma, obstacle, target):
         self.new_run()                                                              # Make new directory for run
         if self.rosbag_process is None:                                             # Start rosbag recording
-            self.rosbag_process = subprocess.Popen(['rosbag', 'record', '-O', self.rosbag_name, '/odometry/filtered', '/cmd_vel', '/ztarget_sep', '/zobstacle_sep', '/zep_status', '/zheartbeat', '/ep_info'])
+            self.rosbag_process = subprocess.Popen(['rosbag', 'record', '-q' , '-O', self.rosbag_name, '/odometry/filtered', '/cmd_vel', '/ztarget_sep', '/zobstacle_sep', '/zep_status', '/zheartbeat', '/ep_info'])
             rospy.loginfo("Started rosbag recording")
             ep_info = [cbf_gamma] + obstacle.flatten().tolist() + target.tolist()       # Create episode info vector
+            rospy.sleep(0.2)
             pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
 
     def stop_recording(self):
@@ -164,19 +183,59 @@ class RosbagRecorder:
         # pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
         # rospy.sleep(1)                                                            # Wait for the message to be published
         if self.rosbag_process is not None:
-            self.rosbag_process.send_signal(signal.SIGINT)                          # Send SIGINT to rosbag to stop recording
-            self.rosbag_process.wait()                                              # Wait for process to terminate
-            self.rosbag_process = None                                              # Set rosbag process to None to reset
-            rospy.loginfo("Stopped rosbag recording")                               # Log info to console
+            try:
+                self.rosbag_process.send_signal(signal.SIGINT)                      # Send SIGINT to rosbag to stop recording
+                rospy.sleep(0.5)                                                    # Wait for rosbag to stop
+                self.rosbag_process.wait(timeout=4)                                 # Wait for process to terminate
+            except subprocess.TimeoutExpired:                                     # If timeout occurs
+                kenny_loggins("[NMPC-rosbag]: rosbag process didn't terminate in time, forcing shutdown.")
+                self.rosbag_process.terminate()                                     # Terminate the process if it doesn't stop
+            finally:
+                self.rosbag_process = None                                              # Set rosbag process to None to reset
+            
+            kenny_loggins("[NMPC-rosbag]: Stopped rosbag recording")                               # Log info to console
             reward = self.assess_episode()                                          # Assess the episode to return reward
             return reward
         
     def assess_episode(self):       # Assess the episode for the next scenario
         reward = 1.0                    # Set the reward for the episode
         return reward
-######################################################################
 
-def wraptopi(x):   # used to wrap angle errors to interval [-pi pi]
+class topicQueue:                                       # Class to create a queue for low frequency topics
+    def __init__(self, topic, msg_type):
+        self.topic = topic                              # Topic name
+        self.msg_type = msg_type                        # Message type
+        self.queue = []                                 # Queue to store messages
+        self.sub = rospy.Subscriber(topic,              # Subscriber to the topic
+                                    msg_type, 
+                                    self.callback, 
+                                    queue_size=10)  
+    
+    def callback(self, msg):                            # Callback function to append messages to the queue
+        self.queue.append(msg.data)                     # Append the message to the queue
+    
+    def pop(self):                                      # Function to pop the first element from the queue
+        return self.queue.pop(0)    
+    
+    def is_empty(self):                                 # Function to check if the queue is empty
+        return len(self.queue) == 0
+
+# ###################################################################################################
+# FUNCTIONS                                                                                           
+# ###################################################################################################
+
+def exit_handler():         # Exit handler for the node
+    kenny_loggins("[NMPC-Exiting]: Shutting down Husky NMPC Node...")             # Log message to console
+    ep_record.stop_recording()                                          # Stop recording the episode
+
+def kenny_loggins(msg, logto=0, lvl=None):  # Danger Zone
+    if logto == 0:                          # Print log messages to console
+        print(msg)
+
+    elif logto == 1:                        # Log to ros log # add log levels
+        rospy.logdebug(msg)
+
+def wraptopi(x):                            # used to wrap angle errors to interval [-pi pi]
     pi = np.pi  
     x = x - np.floor(x/(2*pi)) *2*pi
     if x > pi:
@@ -185,46 +244,48 @@ def wraptopi(x):   # used to wrap angle errors to interval [-pi pi]
   
 odom = Odometry()
 ofleg = False
-def odom_callback(data):        # Feedback state callback
+def odom_callback(msg):                         # Feedback state callback
     global odom, ofleg
-    odom = data
+    odom = msg
     ofleg = True
 
-def getyaw(odom):        # Convert quaternion to euler
+def getyaw(odom):                               # Convert quaternion to euler
     orientation = odom.pose.pose.orientation
     q = [orientation.x, orientation.y, orientation.z, orientation.w]
     roll, pitch, yaw = euler_from_quaternion(q)
     wrap_yaw = wraptopi(yaw)
     return wrap_yaw, yaw
 
-def desired_trajectory(curent_state, N, target_state):   # Generate st_ref and ct_ref at each sampling time from desired trajectory vector
-    state_vector = np.vstack((curent_state, np.tile(target_state, (N+1, 1))))
-    control_vector = np.zeros((N, 2))
+def desired_trajectory(curent_state, N, target_state):              # Generate st_ref and ct_ref at each sampling time from desired trajectory vector
+    state_vector = np.vstack((curent_state, 
+                              np.tile(target_state, (N+1, 1))))     # Generate the state vector
+    control_vector = np.zeros((N, 2))                               # Generate the control vector              
     return state_vector, control_vector
 
 def node_startup():         # Start ROS node and wait for odometry feedback
-    global ofleg, pub_vel, pub_hb, pub_tsep, pub_ssep, pub_status, pub_trainer, pub_info, husky_radius
+    global ofleg, pub_vel, pub_hb, pub_tsep, pub_ssep, pub_status, pub_response, pub_info, husky_radius, request
     husky_radius = 0.55                                                     # Husky robot clearance radius (tight)
     rospy.init_node("robot_nmpc_cbf_node", anonymous=True)                  # Init ROS node
     rospy.Subscriber('/odometry/filtered', Odometry, odom_callback)         # Subscribe to feedback state
+    request = topicQueue('/request', Float32MultiArray)                     # Create a queue for request topic
     pub_vel=    rospy.Publisher('/cmd_vel', Twist, queue_size=5)            # Publish control input from nmpc
     pub_hb=     rospy.Publisher('/zheartbeat', Int16, queue_size=5)          # Publish heartbeat signal (mpc processing time)
     pub_tsep=   rospy.Publisher('/ztarget_sep', Float32, queue_size=5)       # Publish distance to target
     pub_ssep=   rospy.Publisher('/zobstacle_sep', Float32, queue_size=5)     # Publish distance to obstacle
     pub_status= rospy.Publisher('/zep_status', Int8, queue_size=5)              # Publish status of the node (0: running, 1: reached target, 2: collision)
-    pub_trainer=rospy.Publisher('/response', Float32MultiArray, queue_size=10)
+    pub_response=rospy.Publisher('/response', Float32MultiArray, queue_size=10)
     pub_info=   rospy.Publisher('/ep_info', Float32MultiArray, queue_size=5)
 
     rate = 10  
     r = rospy.Rate(rate)                                    # Set Rate of the node in Hz
     
-    print("[INFO] Starting Husky NMPC Node...")             # Wait for odometry feedback
+    kenny_loggins("[NMPC]: Starting Husky NMPC Node...")             # Wait for odometry feedback
     while(ofleg == False):
         time.sleep(1)
-        print("[INFO] Waiting for odometry feedback...")
-    print("[INFO] Husky NMPC Node is ready!!!") 
+        kenny_loggins("[NMPC]: Waiting for odometry feedback...")
+    kenny_loggins("[NMPC]: Husky NMPC Node is ready!!!") 
     time.sleep(1)
-    print("[INFO] Start NMPC simulation!!!")
+    kenny_loggins("[NMPC]: Start NMPC simulation!!!")
     return r
 
 def state_feedback(odom):    # Read feedback state from odometry
@@ -234,12 +295,8 @@ def state_feedback(odom):    # Read feedback state from odometry
     pos_fb = np.array([x_fb, y_fb, theta_fb])
     return pos_fb
 
-
-# episode status states (0: waiting to start, 1: running, 2: at target, 3: collision)
-
-
 def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode is done (target reached or collision)}:
-    # print("Position: ", pos_fb, "Target: ", target, "Obstacle: ", obstacle)       # debug
+    # episode status states (0: waiting to start, 1: running, 2: at target, 3: collision)
     tgt_sep = np.linalg.norm(pos_fb[:2] - target[:2])       # Distance to the target
     start_sep = np.linalg.norm(pos_fb[:2])                  # Distance to the start point
     obs_sep = np.linalg.norm(pos_fb[:2] - obstacle[0,:2])   # Obstacle-vehicle center separation
@@ -247,42 +304,46 @@ def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode
     pub_tsep.publish(tgt_sep)                               # Publish the distance to the target
     pub_ssep.publish(obs_sep)                               # Publish the distance to the obstacle
     new_state = ep_state                                    # Initialize the new episode state
-    if start_sep < 0.1:             # If the vehicle is close to the start point
+    if start_sep < 0.05:             # If the vehicle is close to the start point
         new_state = 1                   # Set the episode state to running
     
     if ep_state != 3:             # Latch the coliision state    
-        if tgt_sep < 0.2:               # If the vehicle is close to the target
+        if tgt_sep < 0.1:               # If the vehicle is close to the target
             new_state = 2                   # Set the episode state to target reached
     
-    if obs_sep < 0:               # If the vehicle is in collision
+    if obs_sep <= 0.0:               # If the vehicle is in collision
         new_state = 3                   # Set the episode state to collision
     
     pub_status.publish(new_state)   # Publish the episode state
     is_done = new_state > 1          # If the episode state is not start (0) or running (1), then it is done
+
+    if is_done:                     # If the episode is done
+        kenny_loggins("[NMPC-Done]: Episode Done!! | last state: " + str(ep_state) + " new state: " + str(new_state)  )                                         # debug
+
     return new_state, is_done
 
 def trainer_request():      # Request the next episode from the trainer
-    print("[TrainerReq]: Getting next episode")                    # debug
-    trainer_prompt = Float32MultiArray()                        # create response message
-    trainer_prompt.data = [-1.0, 0.0, 0.0]                      # initialize response message
-    pub_trainer.publish(trainer_prompt)                         # send response with -1 to get next episode from trainer
-    print("[TrainerReq]: Waiting for next episode")                            # debug
-    next_episode = rospy.wait_for_message('/request', Float32MultiArray)   # wait for response from trainer
-    print(next_episode)                                                 # debug
-    next_episode = np.array(next_episode.data)                              # convert to numpy array
+    kenny_loggins("[NMPC-NextEp]: Getting next episode")                    # debug
+    pub_response.publish(Float32MultiArray(data=[-1.0, 0.0, 0.0]))          # send response with -1 to get next episode from trainer
+    # kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
+    # next_episode = rospy.wait_for_message('/request', Float32MultiArray)    # wait for response from trainer
+    # next_episode = np.array(next_episode.data)                              # convert to numpy array
+    while request.is_empty():                                               # wait for response from trainer               
+        rospy.sleep(1)                                                        # sleep for 0.1s
+        kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
+    next_episode = request.pop()                                            # pop the response from the queue                       
     if next_episode[0] > 0:                                                 # check if next episode is valid                             
-        print("[TrainerReq]: Next episode received: ", next_episode)               # debug
-        cbf_parm = float(next_episode[0])
-        obs_rad = float(next_episode[1])
+        kenny_loggins("[NMPC-NextEp]: Next episode received: " + str(next_episode))               # debug
+        cbf_parm = round(float(next_episode[0]),4)
+        obs_rad = round(float(next_episode[1]),4)
         # rospy.set_param('/cbf_gamma', cbf_parm)           # Set CBF parameter
         # rospy.set_param('/obstacle', obs_rad)            # Set obstacle radius
     else:
-        print("[TrainerReq]: Error getting next episode")                      # debug
+        kenny_loggins("[NMPC-NextEp]: Error getting next episode")                      # debug
 
     return cbf_parm, obs_rad
 
-
-def setup_scenario():       # Setup the scenario for episode
+def setup_scenario():                               # Setup the scenario for episode
     cbf_gamma, orad = trainer_request()                 # Get the CBF parameter and obstacle radius from the trainer for next episode
     approach_sep = 10                                   # Approach separation from the obstacle
     target_sep = 5                                      # Target separation from the obstacle
@@ -292,37 +353,21 @@ def setup_scenario():       # Setup the scenario for episode
     target = np.array([target_x, 0, 0])                 # define target [ x , y , theta ]
     # rospy.set_param('/obs_info', obstacle.tolist())     # Set the obstacle parameter
     # rospy.set_param('/tgt_info', target.tolist())       # Set the target parameter
-    print("New scenario: ", cbf_gamma, obstacle, target)
+    kenny_loggins("\n\n\n[NMPC-SetEp]: New scenario | cbf_gamma: " + str(cbf_gamma) + ' obs: ' + str(obstacle) + ' tgt: ' +str(target) )
     return cbf_gamma, obstacle, target
 
 def reset_simulation():     # Reset the simulation for the next episode
     call_reset = subprocess.run(['rosrun', 'cbf_rl_train', 'reset_episode.py'])
-    print("[INFO] Reset Complete")           # debug
+    kenny_loggins("[NMPC-Reset]: Reset Complete")           # debug
 
-def reset_nmpc(obstacle=None,cbf_gamma=None):           # Reset the NMPC for the next episode
-    global nmpc, N
-    nmpc.u0 = np.zeros((N, 2))                                          # Reset NMPC internal control variable !! Must do this when resetting the episode or the NMPC will cry
-    nmpc.next_states = np.zeros((N+1, 3))                               # Reset NMPC internal state variable  !!  Must do this when resetting the episode or the NMPC will cry
-    
-    full_reset = obstacle is not None and cbf_gamma is not None
-    if full_reset:
-        nmpc.SO = obstacle                                                  # Set the obstacle parameter for NMPC
-        nmpc.cbf_gamma = cbf_gamma                                          # Set the CBF parameter for NMPC
-        nmpc.n_SO = len(obstacle[:, 0])
-    
-    return
-
-
-
-
-######################################################################
-######################################################################
-
-
+# ###################################################################################################
+# MAIN FUNCTION                                                                                           
+# ###################################################################################################
 
 def nmpc_node():            # Main function to run NMPC
-    global nmpc, N, run_id
-    r = node_startup()              # Start node and print info to console
+    global nmpc, N, run_id, ep_record
+    atexit.register(exit_handler)   # Register exit handler for the node
+    r = node_startup()              # Start node 
     pos_fb = state_feedback(odom)   # Read the initial feedback state    
     DT = 0.2                        # Set the timestep for NMPC
     N = 30                          # Set the horizon length
@@ -361,7 +406,7 @@ def nmpc_node():            # Main function to run NMPC
         if ep_state == 0:
             pub_hb.publish(-2)                                                       # Publish zero processing time for done episode
             cbf_gamma, obstacle, target = setup_scenario()
-            reset_nmpc(obstacle, cbf_gamma)
+            nmpc.reset_nmpc(obstacle, cbf_gamma)
             ep_record.start_recording(cbf_gamma, obstacle, target)
         
         pos_fb = state_feedback(odom)                                           # Read feedback state
@@ -378,11 +423,9 @@ def nmpc_node():            # Main function to run NMPC
             vel_msg.angular.z = vel[1]                                              # Set the angular velocity
             pub_vel.publish(vel_msg)                                                # Publish the control input to husky
         else:                                                                # If done, reset the simulation for next episode
-            print("[INFO] Episode Done!!!")                                         # debug
             pub_hb.publish(-1)                                                       # Publish zero processing time for done episode
-            reward = ep_record.stop_recording(cbf_gamma,obstacle,target)                                               # Stop recording the episode
+            reward = ep_record.stop_recording()                                     # Stop recording the episode
             reset_simulation()                                                      # Reset the simulation for the next episode
-            print(reward)                                                           # debug
             ep_state = 0                                                            # Set the episode state to waiting to start
         r.sleep()                                                               # Sleep for the rest of the time
 
@@ -395,3 +438,17 @@ if __name__ == '__main__':
 
 # def get_target():           # Get the fixed target goal state for husky
 #     return np.array(rospy.get_param('/target', [10, 0, 0]))   # Get the target state from ROS parameter server
+
+
+# def reset_nmpc(obstacle=None,cbf_gamma=None):               # Reset the NMPC for the next episode
+#     global nmpc, N
+#     nmpc.u0 = np.zeros((N, 2))                                          # Reset NMPC internal control variable !! Must do this when resetting the episode or the NMPC will cry
+#     nmpc.next_states = np.zeros((N+1, 3))                               # Reset NMPC internal state variable  !!  Must do this when resetting the episode or the NMPC will cry
+    
+#     full_reset = obstacle is not None and cbf_gamma is not None
+#     if full_reset:
+#         nmpc.SO = obstacle                                                  # Set the obstacle parameter for NMPC
+#         nmpc.cbf_gamma = cbf_gamma                                          # Set the CBF parameter for NMPC
+#         nmpc.n_SO = len(obstacle[:, 0])
+    
+#     return
