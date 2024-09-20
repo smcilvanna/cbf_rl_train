@@ -2,6 +2,8 @@
 import numpy as np
 import rospy
 from std_msgs.msg import Float32MultiArray
+from gazebo_msgs.srv import SpawnModel, DeleteModel
+from geometry_msgs.msg import Pose, Point, Quaternion, Vector3
 
 class topicQueue:                                       # Class to create a queue for low frequency topics
     def __init__(self, topic, msg_type):
@@ -22,33 +24,82 @@ class topicQueue:                                       # Class to create a queu
     def is_empty(self):                                 # Function to check if the queue is empty
         return len(self.queue) == 0
 
+# class GazeboCylinderManager:
+#     def __init__(self):
+#         # rospy.init_node('cylinder_manager', anonymous=True)
+#         self.spawn_service = rospy.ServiceProxy('/gazebo/spawn_sdf_model', SpawnModel)
+#         self.delete_service = rospy.ServiceProxy('/gazebo/delete_model', DeleteModel)
+#         self.model_name = "unit_cylinder"
+#         self.model_path = "model://cylinder"  # Reference to Gazebo's built-in cylinder
+#     def spawn_cylinder(self, x, y, radius):
+#         scale = Vector3(radius, radius, 3)  # Set scale for radius and height
+        
+#         # model_xml = f"""
+#         #             <robot name="{self.model_name}">
+#         #             <link name="body">
+#         #                 <visual>
+#         #                 <geometry>
+#         #                     <cylinder radius="{radius}" length="{radius}"/>
+#         #                 </geometry>
+#         #                 </visual>
+#         #                 <collision>
+#         #                 <geometry>
+#         #                     <cylinder radius="{radius}" length="{radius}"/>
+#         #                 </geometry>
+#         #                 </collision>
+#         #             </link>
+#         #             </robot>
+#         #             """
+
+#         pose = Pose(Point(x, y, 1), Quaternion(0, 0, 0, 1))
+#         try:
+#             self.spawn_service(self.model_name, self.model_path, "", pose, "world")
+#             rospy.loginfo("Cylinder spawned successfully")
+#         except rospy.ServiceException as e:
+#             rospy.logerr(f"Failed to spawn cylinder: {e}")
+
+#     def delete_cylinder(self):
+#         try:
+#             self.delete_service(self.model_name)
+#             rospy.loginfo("Cylinder deleted successfully")
+#         except rospy.ServiceException as e:
+#             rospy.logerr(f"Failed to delete cylinder: {e}")
+
 #######################################################################################################################
 
 def get_test_set():         # Get the test set from the trainer
     # cbf_gammas = np.linspace(0.1, 2.0, 20)
     # obs_radii = np.arange(0.5, 5.0, 0.5)
-    
-    cbf_gammas = np.ones(3)*0.1
+
+    cbf_gammas = np.ones(5)*0.1
     # obs_radii = np.ones(2)*1.5
-    obs_radii = np.array([1.5, 2.5, 3.5, 4.5, 5.5])
-    
+    obs_radii = np.array([3.5, 4.5, 5.5])
     grid1, grid2 = np.meshgrid(cbf_gammas, obs_radii)
     combinations = np.column_stack([grid1.ravel(), grid2.ravel()])
-    
     combinations = np.row_stack([combinations, combinations, combinations])
-    
     print("[TRAINER] Test Array Shape : ", combinations.shape) 
-    
-    
     return combinations
 
+def setup_scenario(test):                          # Get obstacle and target positions for the test scenario 
+    husky_radius = 0.55                                 # Husky robot radius
+    orad = test[1]                                      # Get the CBF parameter and obstacle radius from the trainer for next episode
+    approach_sep = 10                                   # Approach separation from the obstacle
+    target_sep = 5                                      # Target separation from the obstacle
+    obstacle_x = husky_radius + orad + approach_sep     # Calculate the obstacle x position
+    target_x =   obstacle_x + orad + target_sep         # Calculate the target x position
+    return obstacle_x, target_x
+
 def trainer_node():                                                         # Main function to run NMPC
-    manual_entry = True                                                         # Enable manual entry of test scenarios                             
+    manual_entry = False                                                         # Enable manual entry of test scenarios                             
     test_set= get_test_set()                                                    # Get the test set          
     rospy.init_node("dummy_trainer", anonymous=True)                            # Init ROS node
     pub_request= rospy.Publisher('/request', Float32MultiArray, queue_size=10)  # Publisher for request
     response = topicQueue('/response', Float32MultiArray)                       # Subscriber queue for response
     r = rospy.Rate(10)                                                          # Rate of the node                
+    
+    # obstacle = GazeboCylinderManager()
+    
+    
     test_idx = 0                                                                # Initialize test index
     while not rospy.is_shutdown():
         while response.is_empty():              # wait for response from trainer
@@ -76,8 +127,17 @@ def trainer_node():                                                         # Ma
                 print("[TRAINER] Test scenario Requested, sending :", [cbf_gamma, obs_radius])      # print the manual test scenario
                 pub_request.publish(Float32MultiArray(data=[cbf_gamma, obs_radius]))                # publish the manual test scenario
             else:
-                print("[TRAINER] Test scenario Requested, sending :", test_set[test_idx])           # print the test scenario
-                pub_request.publish(Float32MultiArray(data=test_set[test_idx]))                     # publish the test scenario
+                this_test = test_set[test_idx]                                                     # get the test scenario
+                print("[TRAINER] Test scenario Requested, sending :", this_test)           # print the test scenario
+                pub_request.publish(Float32MultiArray(data=this_test))                     # publish the test scenario
+                
+                # if test_idx != 0:                                               # on first run spawn the cylinder
+                #     obstacle.delete_cylinder()                                  # delete the obstacle
+                #     rospy.sleep(0.2)
+                
+                # target_x, obstacle_x = setup_scenario(this_test)                # get the obstacle and target positions
+                # obstacle.spawn_cylinder(obstacle_x, 0, this_test[1])            # spawn the obstacle
+                
                 test_idx += 1                                                                       # increment the test index                         
         else:
             print("[TRAINER] Results from test : ", rsp)                                # print the results from the test

@@ -323,7 +323,7 @@ def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode
     return new_state, is_done
 
 def trainer_request():      # Request the next episode from the trainer
-    kenny_loggins("[NMPC-NextEp]: Getting next episode")                    # debug
+    kenny_loggins("\n\n\n\[NMPC-NextEp]: Getting next episode")                    # debug
     pub_response.publish(Float32MultiArray(data=[-1.0, 0.0, 0.0]))          # send response with -1 to get next episode from trainer
     # kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
     # next_episode = rospy.wait_for_message('/request', Float32MultiArray)    # wait for response from trainer
@@ -353,7 +353,7 @@ def setup_scenario():                               # Setup the scenario for epi
     target = np.array([target_x, 0, 0])                 # define target [ x , y , theta ]
     # rospy.set_param('/obs_info', obstacle.tolist())     # Set the obstacle parameter
     # rospy.set_param('/tgt_info', target.tolist())       # Set the target parameter
-    kenny_loggins("\n\n\n[NMPC-SetEp]: New scenario | cbf_gamma: " + str(cbf_gamma) + ' obs: ' + str(obstacle) + ' tgt: ' +str(target) )
+    kenny_loggins("\n[NMPC-SetEp]: New scenario | cbf_gamma: " + str(cbf_gamma) + ' obs: ' + str(obstacle) + ' tgt: ' +str(target) )
     return cbf_gamma, obstacle, target
 
 def reset_simulation():     # Reset the simulation for the next episode
