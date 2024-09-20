@@ -305,15 +305,14 @@ def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode
     pub_tsep.publish(tgt_sep)                               # Publish the distance to the target
     pub_ssep.publish(obs_sep)                               # Publish the distance to the obstacle
     new_state = ep_state                                    # Initialize the new episode state
-    if start_sep < 0.05:             # If the vehicle is close to the start point
+    if start_sep < 0.1:             # If the vehicle is close to the start point
         new_state = 1                   # Set the episode state to running
     
-    if ep_state != 3:             # Latch the coliision state    
-        if tgt_sep < 0.1:               # If the vehicle is close to the target
+    if ep_state == 1:               # When we are running
+        if obs_sep <= 0.001:            # If collision with obstacle
+            new_state = 3                   # Set the episode state to collision
+        elif tgt_sep < 0.1:             # If within tolerance of target position
             new_state = 2                   # Set the episode state to target reached
-    
-    if obs_sep <= 0.0:               # If the vehicle is in collision
-        new_state = 3                   # Set the episode state to collision
     
     pub_status.publish(new_state)   # Publish the episode state
     is_done = new_state > 1          # If the episode state is not start (0) or running (1), then it is done

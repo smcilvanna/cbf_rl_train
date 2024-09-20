@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import numpy as np
 import rospy
 from std_msgs.msg import Float32MultiArray
@@ -43,48 +42,53 @@ def get_test_set():         # Get the test set from the trainer
     
     return combinations
 
-# response = []
-
-# def response_callback(msg):    # Callback function to receive the response from the trainer
-#     global response
-#     response.append(msg.data)
-
-def trainer_node():            # Main function to run NMPC
-    test_set= get_test_set()
-    rospy.init_node("dummy_trainer", anonymous=True)                  # Init ROS node
-    pub_request= rospy.Publisher('/request', Float32MultiArray, queue_size=10)
-    
-    response = topicQueue('/response', Float32MultiArray)
-    
-    # sub_response= rospy.Subscriber('/response', Float32MultiArray, response_callback) # Subscribe to the response from the trainer
-    r = rospy.Rate(100)
-    test_idx = 0
-
+def trainer_node():                                                         # Main function to run NMPC
+    manual_entry = True                                                         # Enable manual entry of test scenarios                             
+    test_set= get_test_set()                                                    # Get the test set          
+    rospy.init_node("dummy_trainer", anonymous=True)                            # Init ROS node
+    pub_request= rospy.Publisher('/request', Float32MultiArray, queue_size=10)  # Publisher for request
+    response = topicQueue('/response', Float32MultiArray)                       # Subscriber queue for response
+    r = rospy.Rate(10)                                                          # Rate of the node                
+    test_idx = 0                                                                # Initialize test index
     while not rospy.is_shutdown():
-        
-        # request_prompt = rospy.wait_for_message('/response', Float32MultiArray) # wait for prompt from trainer
-        while response.is_empty():
-            rospy.sleep(0.1)
-
-        rsp = response.pop()
-
-        if rsp[0] < 0:                                       # check if prompt is for test set
-            print("[TRAINER] Test scenario Requested, sending :", test_set[test_idx])
+        while response.is_empty():              # wait for response from trainer
+            rospy.sleep(0.1)                        # wait here until trainer responds
+        rsp = response.pop()                    # pop the prompt from the queue
+        if rsp[0] < 0:                          # check if response is a prompt 
+            if manual_entry:                    # check if manual entry is enabled
+                cbf_gamma = None                # initialize cbf_gamma
+                obs_radius = None               # initialize obs_radius     
+                while cbf_gamma is None:        # loop until cbf_gamma is entered correctly
+                    cbf_gamma = input("New Test Scenario Requested, what cbf_gamma value to test? : ")
+                    try:
+                        cbf_gamma = float(cbf_gamma)
+                    except:
+                        print("Invalid input, please enter a float value")
+                        cbf_gamma = None
+                while obs_radius is None:       # loop until obs_radius is entered correctly
+                    obs_radius = input("And finally what obs_radius value to test? : ")
+                    try:
+                        obs_radius = float(obs_radius)
+                    except:
+                        print("Invalid input, please enter a float value")
+                        obs_radius = None
             
-            pub_request.publish(Float32MultiArray(data=test_set[test_idx]))
-            test_idx += 1
+                print("[TRAINER] Test scenario Requested, sending :", [cbf_gamma, obs_radius])      # print the manual test scenario
+                pub_request.publish(Float32MultiArray(data=[cbf_gamma, obs_radius]))                # publish the manual test scenario
+            else:
+                print("[TRAINER] Test scenario Requested, sending :", test_set[test_idx])           # print the test scenario
+                pub_request.publish(Float32MultiArray(data=test_set[test_idx]))                     # publish the test scenario
+                test_idx += 1                                                                       # increment the test index                         
         else:
-            print("[TRAINER] Results from test : ", rsp)
+            print("[TRAINER] Results from test : ", rsp)                                # print the results from the test
+            if test_idx == len(test_set):                                           # check if all test scenarios are done
+                print("[TRAINER] Test scenario Requested, sending :", [-1.0, -1.0])      # print the end test scenario msg
+                pub_request.publish(Float32MultiArray(data=[-1.0, -1.0]))                # publish the end test scenario msg
+                break                                                                    # break the loop                   
+        r.sleep()                                                                   # sleep until rate is met
 
-        if test_idx == len(test_set):
-            break
-
-        r.sleep()
-
-
-if __name__ == '__main__':    
-    
-    try:
-        trainer_node()
-    except rospy.ROSInterruptException:
-        pass
+if __name__ == '__main__':                                  # Main function to run the node
+    try:                                                        # Try to run the node
+        trainer_node()                                              # Run the node
+    except rospy.ROSInterruptException:                         # Catch the exception
+        pass                                                        # Pass the exception
