@@ -78,8 +78,8 @@ def get_test_set():         # Get the test set from the trainer
     # cbf_gammas = np.array([0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0])
     # obs_radii = np.array([1.0, 5.0])
 
-    cbf_gammas = np.array([0.5, 0.75, 1.0])
-    obs_radii = np.array([5.0])
+    cbf_gammas = np.array([0.5, 0.5, 0.5, 0.5, 0.5])
+    obs_radii = np.array([1.0])
 
 
     grid1, grid2 = np.meshgrid(cbf_gammas, obs_radii)
@@ -149,7 +149,7 @@ def trainer_node():                                                         # Ma
                 test_idx += 1                                                                       # increment the test index                         
         else:
             print("[TRAINER] Results from test : ", rsp)                                # print the results from the test
-            if test_idx == len(test_set):                                           # check if all test scenarios are done
+            if test_idx > len(test_set):                                           # check if all test scenarios are done
                 print("[TRAINER] Test scenario Requested, sending :", [-1.0, -1.0])      # print the end test scenario msg
                 pub_request.publish(Float32MultiArray(data=[-1.0, -1.0]))                # publish the end test scenario msg
                 break                                                                    # break the loop                   

@@ -139,8 +139,8 @@ class NMPC_CBF_Terminal:
         self.next_states = np.zeros((N+1, 3))                               # Reset NMPC internal state variable  !!  Must do this when resetting the episode or the NMPC will cry
         self.SO = obstacle                                                  # Set the obstacle parameter for NMPC
         self.cbf_gamma = cbf_gamma                                          # Set the CBF parameter for NMPC
-        self.n_SO = len(obstacle[:, 0])
-
+        self.n_SO = len(obstacle[:, 0])                                     # Set the number of obstacles (should always be 1 for this example)
+        self.setup_controller()                                             # Setup the controller optimisation for the next episode
         return
 
 class RosbagRecorder:
@@ -170,19 +170,23 @@ class RosbagRecorder:
         self.rosbag_run += 1
         self.rosbag_name = self.rec_dir + '/nmpc_run_' + str(self.rosbag_run).zfill(6)
 
-    def start_recording(self, cbf_gamma, obstacle, target):
+    def start_recording(self):
         self.new_run()                                                              # Make new directory for run
         if self.rosbag_process is None:                                             # Start rosbag recording
             self.rosbag_process = subprocess.Popen(['rosbag', 'record', '-q' , '-O', self.rosbag_name, '/odometry/filtered', '/cmd_vel', '/ztarget_sep', '/zobstacle_sep', '/zep_status', '/zheartbeat', '/ep_info'])
             rospy.loginfo("Started rosbag recording")
-            ep_info = [cbf_gamma] + obstacle.flatten().tolist() + target.tolist()       # Create episode info vector
-            rospy.sleep(0.2)
-            pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
+            # ep_info = [cbf_gamma] + obstacle.flatten().tolist() + target.tolist()       # Create episode info vector
+            # rospy.sleep(0.2)
+            # pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
 
-    def stop_recording(self):
-        # ep_info = [cbf_gamma] + obstacle.flatten().tolist() + target.tolist()       # Create episode info vector
-        # pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
-        # rospy.sleep(1)                                                            # Wait for the message to be published
+    def stop_recording(self, cbf_gamma=None, obstacle=None, target=None):
+        
+        if cbf_gamma is None or obstacle is None or target is None:                 # If episode info is not provided   
+            ep_info = [-1.0, -1.0, -1.0]                                              # Create episode info vector
+        else:
+            ep_info = [cbf_gamma] + obstacle.flatten().tolist() + target.tolist()       # Create episode info vector
+        pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
+        rospy.sleep(1)                                                            # Wait for the message to be published
         if self.rosbag_process is not None:
             try:
                 self.rosbag_process.send_signal(signal.SIGINT)                      # Send SIGINT to rosbag to stop recording
@@ -400,7 +404,7 @@ def nmpc_node():            # Main function to run NMPC
     vel_msg = Twist()                               # Initialize the velocity message
     done = False                                    # Episode done flag
     ep_record = RosbagRecorder()                    # Create rosbag recorder object
-    ep_record.start_recording(cbf_gamma, obstacle, target)                     # Start recording the episode
+    ep_record.start_recording()                     # Start recording the episode
 
     while not rospy.is_shutdown():
         
@@ -408,7 +412,7 @@ def nmpc_node():            # Main function to run NMPC
             pub_hb.publish(-2)                                                       # Publish zero processing time for done episode
             cbf_gamma, obstacle, target = setup_scenario()
             nmpc.reset_nmpc(obstacle, cbf_gamma)
-            ep_record.start_recording(cbf_gamma, obstacle, target)
+            ep_record.start_recording()
         
         pos_fb = state_feedback(odom)                                           # Read feedback state
         ep_state, done = assess_if_done(target, pos_fb, obstacle, ep_state)     # Assess state of episode (target reached or collision)
@@ -425,7 +429,7 @@ def nmpc_node():            # Main function to run NMPC
             pub_vel.publish(vel_msg)                                                # Publish the control input to husky
         else:                                                                # If done, reset the simulation for next episode
             pub_hb.publish(-1)                                                       # Publish zero processing time for done episode
-            reward = ep_record.stop_recording()                                     # Stop recording the episode
+            reward = ep_record.stop_recording(cbf_gamma, obstacle, target)          # Stop recording the episode
             reset_simulation()                                                      # Reset the simulation for the next episode
             ep_state = 0                                                            # Set the episode state to waiting to start
         r.sleep()                                                               # Sleep for the rest of the time
