@@ -385,9 +385,10 @@ def nmpc_node():            # Main function to run NMPC
 
     limitation = [min_x, max_x, min_y, max_y, min_theta, max_theta, min_v, max_v, min_omega, max_omega]
     
-    W_q = np.diag([5.0, 3.0, 0.1])                  # weights for states
-    W_r = np.diag([0.7, 0.3])                       # weights for controls
-    W_v = 10**5*np.diag([1.0, 1.0, 0.000001])       # weights for terminal state
+    W_q = np.diag([5.0, 5.0, 0.5])                  # weights for states
+    W_r = np.diag([5.0, 0.1])                       # weights for controls
+    # W_v = 10**5*np.diag([1.0, 1.0, 0.000001])       # weights for terminal state
+    W_v = 10**3*np.diag([1.0, 1.0, 0.1])       # weights for terminal state
     
     # while not rospy.get_param('/zenable', False):
     #     rospy.sleep(1)

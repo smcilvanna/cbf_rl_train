@@ -71,12 +71,20 @@ def get_test_set():         # Get the test set from the trainer
     # cbf_gammas = np.linspace(0.1, 2.0, 20)
     # obs_radii = np.arange(0.5, 5.0, 0.5)
 
-    cbf_gammas = np.ones(5)*0.1
-    # obs_radii = np.ones(2)*1.5
-    obs_radii = np.array([3.5, 4.5, 5.5])
+    # cbf_gammas = np.ones(5)*0.1
+    # # obs_radii = np.ones(2)*1.5
+    # obs_radii = np.array([3.5, 4.5, 5.5])
+
+    # cbf_gammas = np.array([0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0])
+    # obs_radii = np.array([1.0, 5.0])
+
+    cbf_gammas = np.array([0.5, 0.75, 1.0])
+    obs_radii = np.array([5.0])
+
+
     grid1, grid2 = np.meshgrid(cbf_gammas, obs_radii)
     combinations = np.column_stack([grid1.ravel(), grid2.ravel()])
-    combinations = np.row_stack([combinations, combinations, combinations])
+    # combinations = np.row_stack([combinations, combinations, combinations])
     print("[TRAINER] Test Array Shape : ", combinations.shape) 
     return combinations
 
