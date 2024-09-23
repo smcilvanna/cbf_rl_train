@@ -78,8 +78,11 @@ def get_test_set():         # Get the test set from the trainer
     # cbf_gammas = np.array([0.05, 0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0])
     # obs_radii = np.array([1.0, 5.0])
 
-    cbf_gammas = np.array([0.5, 0.5, 0.5, 0.5, 0.5])
-    obs_radii = np.array([1.0])
+    # cbf_gammas = np.array([0.5, 0.5, 0.5, 0.5, 0.5])
+    # obs_radii = np.array([1.0])
+
+    cbf_gammas = np.array([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0,1.5])
+    obs_radii = np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0])
 
 
     grid1, grid2 = np.meshgrid(cbf_gammas, obs_radii)
