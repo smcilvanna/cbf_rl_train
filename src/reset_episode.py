@@ -20,7 +20,8 @@ def getyaw(odom):        # Convert quaternion to euler
     wrap_yaw = wraptopi(yaw)
     return round(wrap_yaw,2)
 
-def check_reset(tols=[0.03, 0.03, 0.2, 0.01]):
+def check_reset(tols=[0.02, 0.02, 0.2, 0.005]):
+    rospy.sleep(0.1)                                # sleep for a short time to allow husky to settle
     xtol = tols[0]                                  # x position tolerance
     ytol = tols[1]                                  # y position tolerance
     ztol = tols[2]                                  # z position tolerance
@@ -30,9 +31,9 @@ def check_reset(tols=[0.03, 0.03, 0.2, 0.01]):
     husky_pose = check_gazebo.pose[hidx]        # get pose of husky
     x = abs(husky_pose.position.x) < xtol       # check if x position is within tolerance
     y = abs(husky_pose.position.y) < ytol       # check if y position is within tolerance
-    z = abs(husky_pose.position.z) < ztol       # check if z position is within tolerance
+    # z = abs(husky_pose.position.z) < ztol       # check if z position is within tolerance
     yaw = abs(getyaw(husky_pose)) < wtol        # check if yaw is within tolerance
-    return (x and y and z and yaw)              # return True if all conditions are met
+    return (x and y and yaw)              # return True if all conditions are met
 
 def init_poses():
     # Pose that will be applied on reset (for husky ekf node that provides odom) 

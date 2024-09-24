@@ -304,7 +304,7 @@ def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode
     # episode status states (0: waiting to start, 1: running, 2: at target, 3: collision)
     
     collision_tol = 0.01                                    # Collision tolerance
-    target_tol = 0.1                                        # Target tolerance
+    target_tol = 0.2                                        # Target tolerance
     tgt_sep = np.linalg.norm(pos_fb[:2] - target[:2])       # Distance to the target
     start_sep = np.linalg.norm(pos_fb[:2])                  # Distance to the start point
     obs_sep = np.linalg.norm(pos_fb[:2] - obstacle[0,:2])   # Obstacle-vehicle center separation
@@ -312,8 +312,8 @@ def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode
     # pub_tsep.publish(tgt_sep)                               # Publish the distance to the target
     # pub_ssep.publish(obs_sep)                               # Publish the distance to the obstacle
     new_state = ep_state                                    # Initialize the new episode state
-    if start_sep < 0.1:             # If the vehicle is close to the start point
-        new_state = 1                   # Set the episode state to running
+    # if ep_state==0 and start_sep < 0.5:             # If the vehicle is close to the start point
+    #     new_state = 1                   # Set the episode state to running
     
     if ep_state == 1:                   # When running
         if obs_sep <= collision_tol:        # If collision with obstacle
@@ -335,9 +335,12 @@ def trainer_request():      # Request the next episode from the trainer
     # kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
     # next_episode = rospy.wait_for_message('/request', Float32MultiArray)    # wait for response from trainer
     # next_episode = np.array(next_episode.data)                              # convert to numpy array
+    waitfleg = False
     while request.is_empty():                                               # wait for response from trainer               
         rospy.sleep(1)                                                        # sleep for 0.1s
-        kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
+        if not waitfleg:
+            kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
+            waitfleg = True
     next_episode = request.pop()                                            # pop the response from the queue                       
     if next_episode[0] > 0:                                                 # check if next episode is valid                             
         kenny_loggins("[NMPC-NextEp]: Next episode received: " + str(next_episode))               # debug
@@ -395,7 +398,7 @@ def nmpc_node():                    # Main function to run NMPC
     W_q = np.diag([5.0, 5.0, 0.5])                  # weights for states
     W_r = np.diag([5.0, 0.1])                       # weights for controls
     # W_v = 10**5*np.diag([1.0, 1.0, 0.000001])       # weights for terminal state
-    W_v = 10**3*np.diag([1.0, 1.0, 0.1])       # weights for terminal state
+    W_v = 10**4*np.diag([1.0, 1.0, 0.001])       # weights for terminal state
     
     # while not rospy.get_param('/zenable', False):
     #     rospy.sleep(1)
@@ -416,6 +419,7 @@ def nmpc_node():                    # Main function to run NMPC
             cbf_gamma, obstacle, target = setup_scenario()
             nmpc.reset_nmpc(obstacle, cbf_gamma)
             ep_record.start_recording()
+            ep_state = 1
         
         pos_fb = state_feedback(odom)                                           # Read feedback state
         ep_state, done = assess_if_done(target, pos_fb, obstacle, ep_state)     # Assess state of episode (target reached or collision)
@@ -423,13 +427,21 @@ def nmpc_node():                    # Main function to run NMPC
         if not done:                                                     # Run the NMPC until the episode is done
             next_traj, next_cons = desired_trajectory(pos_fb, N, target)            # Generate the desired trajectory and control input
             # tic = time.time()                                                       # Start the timer
-            vel = nmpc.solve(next_traj, next_cons)                                  # Solve the NMPC problem
-            # toc = (time.time() - tic)*1000                                          # Calculate the processing time in ms
-            # toc = min(int(toc), 5000)                                               # Limit the processing time to 5000ms
-            # pub_hb.publish(toc)                                                     # Publish the processing time to heartbeat topic
+            try:
+                vel = nmpc.solve(next_traj, next_cons)                                  # Solve the NMPC problem
+                # toc = (time.time() - tic)*1000                                          # Calculate the processing time in ms
+                # toc = min(int(toc), 5000)                                               # Limit the processing time to 5000ms
+                # pub_hb.publish(toc)                                                     # Publish the processing time to heartbeat topic
+            except:
+                kenny_loggins("[NMPC-Solve]: ERROR! NMPC Solver failed")
+                print(next_traj)
+                print(next_cons)
+                print(ep_state)
+                vel = [0.0, 0.0]                                                        # Set the control input to zero if NMPC fails
             vel_msg.linear.x = vel[0]                                               # Set the linear veolcity                 
             vel_msg.angular.z = vel[1]                                              # Set the angular velocity
             pub_vel.publish(vel_msg)                                                # Publish the control input to husky
+
         else:                                                                # If done, reset the simulation for next episode
             # pub_hb.publish(-1)                                                       # Publish zero processing time for done episode
             reward = ep_record.stop_recording(cbf_gamma, obstacle, target)          # Stop recording the episode
