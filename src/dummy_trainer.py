@@ -152,7 +152,7 @@ def trainer_node():                                                         # Ma
                 test_idx += 1                                                                       # increment the test index                         
         else:
             print("[TRAINER] Results from test : ", rsp)                                # print the results from the test
-            if test_idx > len(test_set):                                           # check if all test scenarios are done
+            if test_idx >= len(test_set):                                           # check if all test scenarios are done
                 print("[TRAINER] Test scenario Requested, sending :", [-1.0, -1.0])      # print the end test scenario msg
                 pub_request.publish(Float32MultiArray(data=[-1.0, -1.0]))                # publish the end test scenario msg
                 break                                                                    # break the loop                   

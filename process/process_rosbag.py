@@ -167,7 +167,15 @@ def plot_run(bag, test=[-1,-1], reward=0.00):                                   
     obstacle_clearance = plt.Circle((obs_x, 0), crad, color='red', fill=False, linestyle='-', label='Obstacle Clearance')  # plot the obstacle clearance
     ax.add_artist(obstacle_clearance)                                                                                       # add the obstacle clearance to the plot
     
-    rwtxt = ax.text(0.5, 0.5, f'Reward: {reward:.2f}', fontsize=12, transform=ax.transAxes)  # add the reward text to the plot
+    # Determine the color based on the reward value
+    if reward < 0:
+        color = 'red'
+    elif reward > 0:
+        color = 'green'
+    else:
+        color = 'black'
+
+    rwtxt = ax.text(0.6, 0.125, f'Reward: {reward:.2f}', fontsize=12, color=color, transform=ax.transAxes)  # add the reward text to the plot
     ax.add_artist(rwtxt)                                                                    # add the reward text to the plot
     
     ax.set_xlabel('X position')
