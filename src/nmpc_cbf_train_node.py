@@ -147,13 +147,15 @@ class NMPC_CBF_Terminal:
         return
 
 class RosbagRecorder:
-    def __init__(self):
+    def __init__(self, cbf_gamma, obstacle, target):
         self.rosbag_process = None                  # Initialize rosbag process
         self.rosbag_run = 0                         # Initialize rosbag run number
         self.rosbag_name = None                     # Initialize rosbag name
         self.rec_dir = '/root/docker/rosbag/'       # Base Directory to save rosbag files
         self.dir_id = self.init_dir()               # Initialize the directory for rosbag files
-
+        self.cbfgamma = cbf_gamma                   # Initialize CBF parameter
+        self.obstacle = obstacle.flatten().tolist()                # Initialize obstacle parameter
+        self.target = target.tolist()                        # Initialize target parameter
 
     def init_dir(self):
         if not os.path.exists(self.rec_dir):                    # Check if the base directory exists
@@ -167,12 +169,26 @@ class RosbagRecorder:
             next_dir = 1                                                                                            # Set the next directory id to 1                                                
         self.rec_dir = os.path.join(self.rec_dir, str(next_dir).zfill(3))                                       # Create the next directory                
         os.makedirs(self.rec_dir)                                                                               # Make the next directory
+        csv_file_path = os.path.join(self.rec_dir, 'run_info.csv')
+        with open(csv_file_path, 'w') as csv_file:
+            pass  # Create an empty .csv file
+
 
         return next_dir
 
     def new_run(self):
         self.rosbag_run += 1
         self.rosbag_name = self.rec_dir + '/nmpc_run_' + str(self.rosbag_run).zfill(6)
+        header = ['RunID', 'cbf_gamma', 'obs_x', 'obs_y', 'obs_rad', 'tgt_x', 'tgt_y', 'tgt_w', 'reward', 'ep_state']
+        with open(os.path.join(self.rec_dir, 'run_info.csv'), 'a') as csv_file:
+            csv_file.write(','.join(map(str, header)) + '\n')
+
+    def write_info(self,reward,ep_state):
+        this_run_info = [self.rosbag_run, self.cbfgamma] + self.obstacle + self.target + [reward, ep_state]
+        with open(os.path.join(self.rec_dir, 'run_info.csv'), 'a') as csv_file:
+            csv_file.write(','.join(map(str, this_run_info)) + '\n')
+
+
 
     def start_recording(self):
         self.new_run()                                                              # Make new directory for run
@@ -183,14 +199,14 @@ class RosbagRecorder:
             # rospy.sleep(0.2)
             # pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
 
-    def stop_recording(self, cbf_gamma=None, obstacle=None, target=None):
+    def stop_recording(self, ep_state):
         
-        if cbf_gamma is None or obstacle is None or target is None:                 # If episode info is not provided   
-            ep_info = [-1.0, -1.0, -1.0]                                              # Create episode info vector
-        else:
-            ep_info = [cbf_gamma] + obstacle.flatten().tolist() + target.tolist()       # Create episode info vector
-        pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
-        rospy.sleep(1)                                                            # Wait for the message to be published
+        # if cbf_gamma is None or obstacle is None or target is None:                 # If episode info is not provided   
+        #     ep_info = [-1.0, -1.0, -1.0]                                              # Create episode info vector
+        # else:
+        #     ep_info = [cbf_gamma] + obstacle.flatten().tolist() + target.tolist()       # Create episode info vector
+        # pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
+        # rospy.sleep(1)                                                            # Wait for the message to be published
         if self.rosbag_process is not None:
             try:
                 self.rosbag_process.send_signal(signal.SIGINT)                      # Send SIGINT to rosbag to stop recording
@@ -202,12 +218,14 @@ class RosbagRecorder:
             finally:
                 self.rosbag_process = None                                              # Set rosbag process to None to reset
             
-            kenny_loggins("[NMPC-rosbag]: Stopped rosbag recording")                               # Log info to console
-
-            reward = self.assess_episode(cbf_gamma, obstacle[0], target)                                          # Assess the episode to return reward
+            kenny_loggins("[NMPC-rosbag]: Stopped rosbag recording")                    # Log info to console
             
-            print(f"\n\n\nCBF: {ep_info[0]} \nObstacle: {ep_info[1]}m \nReward: {reward}\n\n\n")
-            
+            if ep_state != -1.0:                                                        # If stop is not due to exit
+                reward = self.assess_episode(self.cbfgamma, self.obstacle, self.target)     # Assess the episode to return reward
+            else:
+                reward = -1.0                                                               # Set reward to -1 if episode is stopped due to exit
+            print(f"\n\n\nCBF: {self.cbfgamma} \nObstacle: {self.obstacle[2]}m \nReward: {reward}\n\n\n")
+            self.write_info(reward,ep_state)                                            # Write the episode info to the csv file
             return reward
         
     def assess_episode(self, cbf_gamma, obstacle, target):       # Assess the episode for the next scenario
@@ -243,7 +261,7 @@ class topicQueue:                                       # Class to create a queu
 
 def exit_handler():         # Exit handler for the node
     kenny_loggins("[NMPC-Exiting]: Shutting down Husky NMPC Node...")             # Log message to console
-    ep_record.stop_recording()                                          # Stop recording the episode
+    ep_record.stop_recording(ep_state=-1.0)                                          # Stop recording the episode
 
 def kenny_loggins(msg, logto=0, lvl=None):  # Danger Zone
     if logto == 0:                          # Print log messages to console
@@ -421,7 +439,7 @@ def nmpc_node():                    # Main function to run NMPC
     ep_state = 1                                    # Episode state (0: waiting to start, 1: running, 2: at target, 3: collision)
     vel_msg = Twist()                               # Initialize the velocity message
     done = False                                    # Episode done flag
-    ep_record = RosbagRecorder()                    # Create rosbag recorder object
+    ep_record = RosbagRecorder(cbf_gamma,obstacle,target)                    # Create rosbag recorder object
     ep_record.start_recording()                     # Start recording the episode
 
     while not rospy.is_shutdown():
@@ -456,7 +474,7 @@ def nmpc_node():                    # Main function to run NMPC
 
         else:                                                                # If done, reset the simulation for next episode
             # pub_hb.publish(-1)                                                       # Publish zero processing time for done episode
-            reward = ep_record.stop_recording(cbf_gamma, obstacle, target)          # Stop recording the episode
+            reward = ep_record.stop_recording(ep_state)          # Stop recording the episode
             reset_simulation()                                                      # Reset the simulation for the next episode
             ep_state = 0                                                            # Set the episode state to waiting to start
         
