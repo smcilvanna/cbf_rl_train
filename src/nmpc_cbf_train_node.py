@@ -13,6 +13,9 @@ import subprocess
 import signal
 import os
 import atexit
+import rosbag
+from process_rosbag import get_reward
+
 
 # ###################################################################################################
 # CLASS DEFINITIONS                                                                                           
@@ -151,6 +154,7 @@ class RosbagRecorder:
         self.rec_dir = '/root/docker/rosbag/'       # Base Directory to save rosbag files
         self.dir_id = self.init_dir()               # Initialize the directory for rosbag files
 
+
     def init_dir(self):
         if not os.path.exists(self.rec_dir):                    # Check if the base directory exists
             kenny_loggins("[NMPC-rosbag]: ERROR! Rosbag Directory does not exist")       # debug
@@ -199,11 +203,19 @@ class RosbagRecorder:
                 self.rosbag_process = None                                              # Set rosbag process to None to reset
             
             kenny_loggins("[NMPC-rosbag]: Stopped rosbag recording")                               # Log info to console
-            reward = self.assess_episode()                                          # Assess the episode to return reward
+
+            reward = self.assess_episode(cbf_gamma, obstacle[0], target)                                          # Assess the episode to return reward
+            
+            print(f"\n\n\nCBF: {ep_info[0]} \nObstacle: {ep_info[1]}m \nReward: {reward}\n\n\n")
+            
             return reward
         
-    def assess_episode(self):       # Assess the episode for the next scenario
-        reward = 1.0                    # Set the reward for the episode
+    def assess_episode(self, cbf_gamma, obstacle, target):       # Assess the episode for the next scenario
+        rospy.sleep(1)
+        bagfile = self.rosbag_name + '.bag'             # Get the bag file name
+        bag = rosbag.Bag(bagfile)                       # Open the bag file
+        # print(cbf_gamma,obstacle,target)
+        reward = get_reward(bag,cbf_gamma,obstacle,target)                   # Set the reward for the episode
         return reward
 
 class topicQueue:                                       # Class to create a queue for low frequency topics
