@@ -14,6 +14,8 @@ import signal
 import os
 import atexit
 import rosbag
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from process_rosbag import get_reward
 
 
@@ -151,7 +153,7 @@ class RosbagRecorder:
         self.rosbag_process = None                  # Initialize rosbag process
         self.rosbag_run = 0                         # Initialize rosbag run number
         self.rosbag_name = None                     # Initialize rosbag name
-        self.rec_dir = '/root/docker/rosbag/'       # Base Directory to save rosbag files
+        self.rec_dir = '/home/user/husky/rosbag/'       # Base Directory to save rosbag files
         self.dir_id = self.init_dir()               # Initialize the directory for rosbag files
         self.cbfgamma = cbf_gamma                   # Initialize CBF parameter
         self.obstacle = obstacle.flatten().tolist()                # Initialize obstacle parameter
@@ -360,7 +362,7 @@ def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode
     return new_state, is_done
 
 def trainer_request():      # Request the next episode from the trainer
-    kenny_loggins("\n\n\n\[NMPC-NextEp]: Getting next episode")                    # debug
+    kenny_loggins("\n\n\n >>>>> [NMPC-NextEp]: Getting next episode")                    # debug
     pub_response.publish(Float32MultiArray(data=[-1.0, 0.0, 0.0]))          # send response with -1 to get next episode from trainer
     # kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
     # next_episode = rospy.wait_for_message('/request', Float32MultiArray)    # wait for response from trainer
@@ -373,7 +375,8 @@ def trainer_request():      # Request the next episode from the trainer
             waitfleg = True
     next_episode = request.pop()                                            # pop the response from the queue                       
     if next_episode[0] > 0:                                                 # check if next episode is valid                             
-        kenny_loggins("[NMPC-NextEp]: Next episode received: " + str(next_episode))               # debug
+        rounded_episode = tuple(round(elem, 4) for elem in next_episode)
+        kenny_loggins("[NMPC-NextEp]: Next episode received: " + str(rounded_episode))               # debug
         cbf_parm = round(float(next_episode[0]),4)
         obs_rad = round(float(next_episode[1]),4)
         # rospy.set_param('/cbf_gamma', cbf_parm)           # Set CBF parameter
