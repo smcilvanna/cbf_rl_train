@@ -181,9 +181,10 @@ class RosbagRecorder:
     def new_run(self):
         self.rosbag_run += 1
         self.rosbag_name = self.rec_dir + '/nmpc_run_' + str(self.rosbag_run).zfill(6)
-        header = ['RunID', 'cbf_gamma', 'obs_x', 'obs_y', 'obs_rad', 'tgt_x', 'tgt_y', 'tgt_w', 'reward', 'ep_state']
-        with open(os.path.join(self.rec_dir, 'run_info.csv'), 'a') as csv_file:
-            csv_file.write(','.join(map(str, header)) + '\n')
+        if self.rosbag_run == 1:
+            header = ['RunID', 'cbf_gamma', 'obs_x', 'obs_y', 'obs_rad', 'tgt_x', 'tgt_y', 'tgt_w', 'reward', 'ep_state']
+            with open(os.path.join(self.rec_dir, 'run_info.csv'), 'a') as csv_file:
+                csv_file.write(','.join(map(str, header)) + '\n')
 
     def write_info(self,reward,ep_state):
         this_run_info = [self.rosbag_run, self.cbfgamma] + self.obstacle + self.target + [reward, ep_state]
