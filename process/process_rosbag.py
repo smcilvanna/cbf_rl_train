@@ -25,7 +25,7 @@ def check_ep_info(dirid=None):
         print("Directory ID not provided")
         return
 
-    dir_to_plot = '/root/docker/rosbag/' + str(dirid).zfill(3)                  # directory containing the bag files
+    dir_to_plot = '/home/user/husky/rosbag/' + str(dirid).zfill(3)                  # directory containing the bag files
 
     for file_name in sorted(os.listdir(dir_to_plot)):                           # list the files in the directory in order      
         continue                                                                           
@@ -60,14 +60,14 @@ def add_episode_info(dirid=None, index=None, cbf_gamma=None, orad=None):
     ep_info = [cbf_gamma, obs_x, -0.05, orad, tgt_x, 0, 0]
     print("\n")
     print(ep_info)
-    bagfile = f'/root/docker/rosbag/{str(dirid).zfill(3)}/nmpc_run_{str(index).zfill(6)}.bag'
+    bagfile = f'/home/user/husky/rosbag/{str(dirid).zfill(3)}/nmpc_run_{str(index).zfill(6)}.bag'
     input(f"Bag file: {bagfile}  | Press Enter to continue...")              # wait for user to confirm
     bag = rosbag.Bag(bagfile, 'a')
     ep_info_msg = Float32MultiArray(data=ep_info)
     bag.write('/ep_info', ep_info_msg)
     bag.close()
 
-def get_episode_info(bag):
+def get_episode_info(bag):                                          #old function, use csv file instead
     for topic, msg, t in bag.read_messages(topics=['/ep_info']):
         episode_info = msg.data                                     # [cbf_gamma, obs_x, obs_y, obs_r, target_x, target_y, target_w]
     
@@ -77,6 +77,13 @@ def get_episode_info(bag):
     target = [round(elm,4) for elm in episode_info[4:]]
 
     return cbf_gamma, obstacle, target
+
+def get_episode_info_csv(dirid):
+    csv_file = f'/home/user/husky/rosbag/{str(dirid).zfill(3)}/run_info.csv'
+    with open(csv_file, 'r') as f:    
+        header = f.readline().strip().split(',')    # Read the header row
+    data = np.genfromtxt(csv_file, delimiter=',', skip_header=1, dtype=float)
+    return data, header
 
 def get_odom(bag):
     X = bag.read_messages(topics=['/odometry/filtered'])
@@ -149,7 +156,7 @@ def check_bag(bag):                             # check if all expected topics a
 
     return all_topics
 
-def plot_run(bag, test=[-1,-1], reward=0.00):                                     # plot the run from the bag file
+def plot_run(bag, test=[-1,-1], reward=0.00, reward2=None):                                     # plot the run from the bag file
     husky_radius = 0.55                                                         # Husky robot radius
     gamma = test[0]                                                             # Get the CBF parameter 
     orad = test[1]                                                              # Get the obstacle radius
@@ -177,6 +184,9 @@ def plot_run(bag, test=[-1,-1], reward=0.00):                                   
 
     rwtxt = ax.text(0.6, 0.125, f'Reward: {reward:.2f}', fontsize=12, color=color, transform=ax.transAxes)  # add the reward text to the plot
     ax.add_artist(rwtxt)                                                                    # add the reward text to the plot
+    if reward2 != None:
+        rwtxt2 = ax.text(0.6, 0.075, f'Reward: {reward2:.2f}', fontsize=12, color='blue', transform=ax.transAxes)
+        ax.add_artist(rwtxt)
     
     ax.set_xlabel('X position')
     ax.set_ylabel('Y position')
@@ -248,8 +258,8 @@ def setup_scenario(test):                          # Get obstacle and target pos
     target_x =   obstacle_x + orad + target_sep         # Calculate the target x position
     return obstacle_x, target_x
 
-def create_gif_from_images(framerate=1.0, image_dir='/root/docker/husky_mpc_ws/src/cbf_rl_train/src/.temp/rosbag/temp_plts', 
-                           output_gif='/root/docker/husky_mpc_ws/src/cbf_rl_train/src/.temp/rosbag/trajectory.gif'):
+def create_gif_from_images(framerate=1.0, image_dir='/home/user/husky/husky_mpc_ws/src/cbf_rl_train/src/.temp/rosbag/temp_plts', 
+                           output_gif='/home/user/husky/husky_mpc_ws/src/cbf_rl_train/src/.temp/rosbag/trajectory.gif'):
     images = []
     for file_name in sorted(os.listdir(image_dir)):
         if file_name.endswith('.png'):
@@ -258,14 +268,16 @@ def create_gif_from_images(framerate=1.0, image_dir='/root/docker/husky_mpc_ws/s
     imageio.mimsave(output_gif, images, fps=framerate)
 
 def plot_dir(dirid=1,framerate=1.0):
-    dir_to_plot = '/root/docker/rosbag/' + str(dirid).zfill(3)                  # directory containing the bag files
+    dir_to_plot = '/home/user/husky/rosbag/' + str(dirid).zfill(3)              # directory containing the bag files
 
     print(f"Contents of {dir_to_plot}:")                                        # print the contents of the directory
     for file_name in sorted(os.listdir(dir_to_plot)):                           # list the files in the directory in order      
         print(file_name)                                                            # print the file name               
 
-    lastid = int(file_name.split('_')[2].split('.')[0])                              # get the last file id
+    lastid = int(file_name.split('_')[2].split('.')[0])                         # get the last file id
     input(f"Last File ID: {lastid}  | Press Enter to continue...")              # wait for user to confirm
+
+    run_data, run_header = get_episode_info_csv(dirid)                         # get the episode information from the csv file
 
     for idx in range(1, lastid+1):
         bagfile = dir_to_plot + '/nmpc_run_' + str(idx).zfill(6) + '.bag'       # bag file to read
@@ -274,15 +286,39 @@ def plot_dir(dirid=1,framerate=1.0):
         cbf_gamma, obstacle, target = get_episode_info(bag)                     # get the episode information
         test_info = [cbf_gamma, obstacle[2]]                                    # test information
         reward = get_reward(bag, cbf_gamma, obstacle, target)                   # get the reward
-        fig = plot_run(bag, test_info,reward)                                          # plot the run
-        output_file = f'/root/docker/husky_mpc_ws/src/cbf_rl_train/src/.temp/rosbag/temp_plts/nmpc_run_{str(idx).zfill(6)}.png' # output file name
+        reward2 = float(run_data[idx-1, 8])                                     # get the reward from the csv file
+        fig = plot_run(bag, test_info,reward, reward2)                          # plot the run
+        output_file = f'{out_dir}/nmpc_run_{str(idx).zfill(6)}.png'             # output file name
         fig.savefig(output_file)                                                # save the plot to a file in temp folder
         plt.close(fig)                                                          # close the plot              
 
     create_gif_from_images(framerate=framerate)                                                     # create a gif from the images           
 
+def set_and_check_output_dirs(out_dir=None):
+    dirOK = True
+    if out_dir == None:                                                             # check if the output directory is provided
+        out_dir = ('/home/user/husky/husky_mpc_ws/src/'
+                    'cbf_rl_train/src/.temp/rosbag/temp_plts')                     # set the default output directory
+    if not os.path.exists(out_dir):                                                 # check if the output directory exists
+        print("Output directory does not exist.")                                       # print message if the output directory does not exist
+        dirOK = False                                                                   # set the flag to False                            
+
+    png_files = [f for f in os.listdir(out_dir) if f.endswith('.png')]              # get the list of .png files in the output directory
+    if png_files:                                                               # check if there are no .png files in the output directory                                                                                            # if there are .png files in the output
+        print(f"Found {len(png_files)} .png files in the output directory.")            # print the number of .png files found in the output directory
+        dirOK = False                                                                   # set the flag to False                                
+
+    return dirOK, out_dir
+
 if __name__ == '__main__':
 
-    plot_dir(10,2.0)
+    dirok, out_dir = set_and_check_output_dirs()
+    if not dirok:
+        print("Output directory is not empty. Exiting...")
+        exit()
+
+    # plot_dir(dirid=10, framerate=2.0)
     # check_ep_info(10)
     # add_episode_info(dirid=10, index=30, cbf_gamma=0.75, orad=3.0)
+
+    

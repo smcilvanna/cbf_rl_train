@@ -153,11 +153,11 @@ class RosbagRecorder:
         self.rosbag_process = None                  # Initialize rosbag process
         self.rosbag_run = 0                         # Initialize rosbag run number
         self.rosbag_name = None                     # Initialize rosbag name
-        self.rec_dir = '/home/user/husky/rosbag/'       # Base Directory to save rosbag files
+        self.rec_dir = '/home/user/husky/rosbag/'   # Base Directory to save rosbag files
         self.dir_id = self.init_dir()               # Initialize the directory for rosbag files
         self.cbfgamma = cbf_gamma                   # Initialize CBF parameter
-        self.obstacle = obstacle.flatten().tolist()                # Initialize obstacle parameter
-        self.target = target.tolist()                        # Initialize target parameter
+        self.obstacle = obstacle.flatten().tolist() # Initialize obstacle parameter
+        self.target = target.tolist()               # Initialize target parameter
 
     def init_dir(self):
         if not os.path.exists(self.rec_dir):                    # Check if the base directory exists
@@ -196,11 +196,8 @@ class RosbagRecorder:
     def start_recording(self):
         self.new_run()                                                              # Make new directory for run
         if self.rosbag_process is None:                                             # Start rosbag recording
-            self.rosbag_process = subprocess.Popen(['rosbag', 'record', '-q' , '-O', self.rosbag_name, '/odometry/filtered', '/cmd_vel', '/ep_info'])
-            rospy.loginfo("Started rosbag recording")
-            # ep_info = [cbf_gamma] + obstacle.flatten().tolist() + target.tolist()       # Create episode info vector
-            # rospy.sleep(0.2)
-            # pub_info.publish(Float32MultiArray(data=ep_info))                           # Publish episode info for rosbag
+            self.rosbag_process = subprocess.Popen(['rosbag', 'record', '-q' , '-O', self.rosbag_name, '/odometry/filtered', '/cmd_vel'])
+            rospy.sleep(0.5)
 
     def stop_recording(self, ep_state):
         
@@ -448,20 +445,22 @@ def nmpc_node():                    # Main function to run NMPC
 
     while not rospy.is_shutdown():
         
-        if ep_state == 0:
-            # pub_hb.publish(-2)                                                       # Publish zero processing time for done episode
-            cbf_gamma, obstacle, target = setup_scenario()
-            nmpc.reset_nmpc(obstacle, cbf_gamma)
-            ep_record.start_recording()
-            ep_state = 1
+        if ep_state == 0:                                       # If the episode is waiting to start from previous reset
+            cbf_gamma, obstacle, target = setup_scenario()          # Setup the scenario for the next episode
+            nmpc.reset_nmpc(obstacle, cbf_gamma)                    # Reset the NMPC for the next episode
+            ep_record.cbfgamma = cbf_gamma                         # Set the CBF parameter for recording
+            ep_record.obstacle = obstacle.flatten().tolist()        # Set the obstacle parameter for recording      
+            ep_record.target = target.tolist()                      # Set the target parameter for recording
+            ep_record.start_recording()                             # Start recording the episode
+            ep_state = 1                                            # Set the episode state to running
         
         pos_fb = state_feedback(odom)                                           # Read feedback state
         ep_state, done = assess_if_done(target, pos_fb, obstacle, ep_state)     # Assess state of episode (target reached or collision)
         
-        if not done:                                                     # Run the NMPC until the episode is done
+        if not done:                                                            # Run the NMPC until the episode is done
             next_traj, next_cons = desired_trajectory(pos_fb, N, target)            # Generate the desired trajectory and control input
-            # tic = time.time()                                                       # Start the timer
-            try:
+            # tic = time.time()                                                     # Start the timer
+            try:                                                                    # Try to solve the NMPC problem                                 
                 vel = nmpc.solve(next_traj, next_cons)                                  # Solve the NMPC problem
                 # toc = (time.time() - tic)*1000                                          # Calculate the processing time in ms
                 # toc = min(int(toc), 5000)                                               # Limit the processing time to 5000ms
