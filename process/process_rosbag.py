@@ -273,8 +273,11 @@ def plot_dir(dirid=1,framerate=1.0):
     print(f"Contents of {dir_to_plot}:")                                        # print the contents of the directory
     for file_name in sorted(os.listdir(dir_to_plot)):                           # list the files in the directory in order      
         print(file_name)                                                            # print the file name               
+        if not file_name.endswith(".csv"):                                          # check if the file is not a csv file
+            run_file = file_name
+            continue                                                                # skip the file
 
-    lastid = int(file_name.split('_')[2].split('.')[0])                         # get the last file id
+    lastid = int(run_file.split('_')[2].split('.')[0])                         # get the last file id
     input(f"Last File ID: {lastid}  | Press Enter to continue...")              # wait for user to confirm
 
     run_data, run_header = get_episode_info_csv(dirid)                         # get the episode information from the csv file
@@ -283,7 +286,10 @@ def plot_dir(dirid=1,framerate=1.0):
         bagfile = dir_to_plot + '/nmpc_run_' + str(idx).zfill(6) + '.bag'       # bag file to read
         bag = rosbag.Bag(bagfile)                                               # open the bag file
         print(f"\n\nBag file: {bagfile}")                                       # print the bag file name          
-        cbf_gamma, obstacle, target = get_episode_info(bag)                     # get the episode information
+        # cbf_gamma, obstacle, target = get_episode_info(bag)                     # get the episode information
+        cbf_gamma = run_data[idx-1, 1]
+        obstacle = [run_data[idx-1, 2], run_data[idx-1, 3], run_data[idx-1, 4]]
+        target = [run_data[idx-1, 5], run_data[idx-1, 6], run_data[idx-1, 7]]
         test_info = [cbf_gamma, obstacle[2]]                                    # test information
         reward = get_reward(bag, cbf_gamma, obstacle, target)                   # get the reward
         reward2 = float(run_data[idx-1, 8])                                     # get the reward from the csv file
@@ -317,7 +323,7 @@ if __name__ == '__main__':
         print("Output directory is not empty. Exiting...")
         exit()
 
-    # plot_dir(dirid=10, framerate=2.0)
+    plot_dir(dirid=3, framerate=2.0)
     # check_ep_info(10)
     # add_episode_info(dirid=10, index=30, cbf_gamma=0.75, orad=3.0)
 
