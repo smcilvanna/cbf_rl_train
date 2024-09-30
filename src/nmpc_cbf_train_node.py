@@ -361,7 +361,7 @@ def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode
 
 def trainer_request():      # Request the next episode from the trainer
     kenny_loggins("\n\n\n >>>>> [NMPC-NextEp]: Getting next episode")                    # debug
-    pub_response.publish(Float32MultiArray(data=[-1.0, 0.0, 0.0]))          # send response with -1 to get next episode from trainer
+    pub_response.publish(Float32MultiArray(data=[-1.0, -1.0, -1.0]))          # send response with -1 to get next episode from trainer
     # kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
     # next_episode = rospy.wait_for_message('/request', Float32MultiArray)    # wait for response from trainer
     # next_episode = np.array(next_episode.data)                              # convert to numpy array
@@ -478,6 +478,7 @@ def nmpc_node():                    # Main function to run NMPC
         else:                                                                # If done, reset the simulation for next episode
             # pub_hb.publish(-1)                                                       # Publish zero processing time for done episode
             reward = ep_record.stop_recording(ep_state)          # Stop recording the episode
+            ##### ADD PUB REWARD HERE
             reset_simulation()                                                      # Reset the simulation for the next episode
             ep_state = 0                                                            # Set the episode state to waiting to start
         

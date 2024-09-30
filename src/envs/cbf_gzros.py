@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -6,8 +7,6 @@ from std_msgs.msg import Float32MultiArray
 
 class gymros:                                       # Class to create a queue for low frequency topics
     def __init__(self):
-        
-        rospy.init_node('gymnode', anonymous=True)      # Initialize the node
         self.sub_topic = '/response'                    # Topic name
         self.sub_msg_type = Float32MultiArray           # Message type
         self.queue = []                                 # Queue to store messages
@@ -70,9 +69,12 @@ class CustomEnv(gym.Env):
         while reward == None:
             rospy.sleep(0.1)
             if not self.gymros.is_empty():
-                reward = self.gymros.pop()
-                if reward[1] > 0:
-                    reward = reward[0]
+                response_from_gz = self.gymros.pop()
+                print(response_from_gz)
+                print(type(response_from_gz))
+                print(len(response_from_gz))
+                if response_from_gz[1] > 0:
+                    reward = float(response_from_gz[0])
 
         
         print(f"[gym-step] Reward Value for CBF value {self.a} with obstacle radius {self.observation}m is : {reward}")

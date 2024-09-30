@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from gymnasium.envs.registration import register
 
 # Import your custom environment class

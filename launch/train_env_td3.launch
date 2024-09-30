@@ -35,10 +35,13 @@
     <!-- <node pkg="rqt_console" type="rqt_console" name="rqt_console" output="screen" /> -->
 
     <!-- Dummy Trainer -->
-    <node pkg="cbf_rl_train" type="dummy_trainer.py" name="dummy_trainer" output="screen" />
+    <!-- <node pkg="cbf_rl_train" type="dummy_trainer.py" name="dummy_trainer" output="screen" /> -->
     
     <!-- Trajectory -->
     <!-- <node pkg="cbf_rl_train" type="trajectory.py" name="robot_trajectory" output="screen"/> -->
+
+    <!-- Gym-Trainer-TD3 -->
+    <node pkg="cbf_rl_train" type="train_td3.py" name="gymnode" output="screen" />
 
     <!-- Controller -->
     <node pkg="cbf_rl_train" type="nmpc_cbf_train_node.py" name="robot_nmpc_cbf_node" output="screen" />

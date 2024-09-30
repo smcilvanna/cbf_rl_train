@@ -1,11 +1,13 @@
+#!/usr/bin/env python3
 import gymnasium as gym
 import register_env  # need this so module registers the custom environment!
 from stable_baselines3 import TD3
 from stable_baselines3.common.noise import NormalActionNoise
 from itertools import product
-import time
+# import time
 import numpy as np
-import os
+# import os
+import rospy
 
 def train_td3(learning_rate, gamma, batch_size, train_steps=20000):    
     env = gym.make('cbf-train-gzros')          # Create the environment
@@ -71,6 +73,8 @@ def train_td3(learning_rate, gamma, batch_size, train_steps=20000):
 #             print("Average reward: ", ave_reward, " Min reward: ", min_reward)
 
 if __name__ == "__main__":
+    
+    rospy.init_node('gymnode', anonymous=True)      # Initialize the node
 
     learnrate = 1e-3
     gamma     = 0.00
