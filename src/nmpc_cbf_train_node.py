@@ -231,9 +231,18 @@ class RosbagRecorder:
     def assess_episode(self, cbf_gamma, obstacle, target):       # Assess the episode for the next scenario
         rospy.sleep(1)
         bagfile = self.rosbag_name + '.bag'             # Get the bag file name
-        bag = rosbag.Bag(bagfile)                       # Open the bag file
-        # print(cbf_gamma,obstacle,target)
-        reward = get_reward(bag,cbf_gamma,obstacle,target)                   # Set the reward for the episode
+        
+        check_for_file = 0
+        while (not os.path.exists(bagfile)) or check_for_file < 10:    # Check if the bag file exists
+            kenny_loggins(f"[NMPC-rosbag]: WARN! Bag file {bagfile} is not available. [{check_for_file}]")  # Log message to console
+            check_for_file += 1
+            rospy.sleep(1)
+        if check_for_file >= 10:                                                    # If the bag file is not available
+            kenny_loggins("[NMPC-rosbag]: ERROR! Bag file not found. Episode truncated.")   # Log message to console
+            reward = -666.666                                                               # Set the reward to indicate episode truncated error
+        else:                                                                       # If the bag file is available
+            bag = rosbag.Bag(bagfile)                                                   # Open the bag file
+            reward = get_reward(bag,cbf_gamma,obstacle,target)                          # Set the reward for the episode
         return reward
 
 class topicQueue:                                       # Class to create a queue for low frequency topics
@@ -490,7 +499,7 @@ def nmpc_node():                    # Main function to run NMPC
             test_response = [reward,                                            # Test response vector to send to trainer
                              ep_state, 
                              cbf_gamma, 
-                             obstacle[2]]
+                             obstacle[0,2]]
             pub_response.publish(Float32MultiArray(data=test_response))         # Send test result to trainer [ reward, ep_state, cbf_gamma, obs_rad]
             reset_simulation()                                                  # Reset the simulation for the next episode
             ep_state = 0                                                        # Set the episode state to waiting to start
