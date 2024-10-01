@@ -223,7 +223,7 @@ class RosbagRecorder:
             if ep_state != -1.0:                                                        # If stop is not due to exit
                 reward = self.assess_episode(self.cbfgamma, self.obstacle, self.target)     # Assess the episode to return reward
             else:
-                reward = -1.0                                                               # Set reward to -1 if episode is stopped due to exit
+                reward = -666.666                                                               # Set reward to -1 if episode is stopped due to exit
             print(f"\n\n\nCBF: {self.cbfgamma} \nObstacle: {self.obstacle[2]}m \nReward: {reward}\n\n\n")
             self.write_info(reward,ep_state)                                            # Write the episode info to the csv file
             return reward
@@ -361,7 +361,7 @@ def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode
 
 def trainer_request():      # Request the next episode from the trainer
     kenny_loggins("\n\n\n >>>>> [NMPC-NextEp]: Getting next episode")                    # debug
-    pub_response.publish(Float32MultiArray(data=[-1.0, -1.0, -1.0]))          # send response with -1 to get next episode from trainer
+    pub_response.publish(Float32MultiArray(data=[-1.0, -1.0, -1.0, -1.0]))          # send response with -1 to get next episode from trainer
     # kenny_loggins("[NMPC-NextEp]: Waiting for next episode")                # debug
     # next_episode = rospy.wait_for_message('/request', Float32MultiArray)    # wait for response from trainer
     # next_episode = np.array(next_episode.data)                              # convert to numpy array
@@ -406,12 +406,13 @@ def reset_simulation():     # Reset the simulation for the next episode
 # ###################################################################################################
 
 def nmpc_node():                    # Main function to run NMPC
-    global nmpc, N, run_id, ep_record
-    atexit.register(exit_handler)   # Register exit handler for the node
-    r = node_startup()              # Start node 
-    pos_fb = state_feedback(odom)   # Read the initial feedback state    
-    DT = 0.1                        # Set the timestep for NMPC
-    N = 30                          # Set the horizon length
+    global nmpc, N, run_id, ep_record   # global variables
+    atexit.register(exit_handler)       # Register exit handler for the node
+    r = node_startup()                  # Start node 
+    pos_fb = state_feedback(odom)       # Read the initial feedback state    
+    DT = 0.1                            # Set the timestep for NMPC
+    N = 30                              # Set the horizon length
+    
     # NMPC constraints and weights
     min_x = -100            # workspace limitations
     max_x = 100
@@ -424,31 +425,39 @@ def nmpc_node():                    # Main function to run NMPC
     min_omega = -0.7854     # angular velocity limitations
     max_omega = 0.7854
 
-    limitation = [min_x, max_x, min_y, max_y, min_theta, max_theta, min_v, max_v, min_omega, max_omega]
+    limitation = [min_x, max_x, 
+                  min_y, max_y, 
+                  min_theta, max_theta, 
+                  min_v, max_v, 
+                  min_omega, max_omega]
     
     W_q = np.diag([5.0, 5.0, 0.5])                  # weights for states
     W_r = np.diag([5.0, 0.1])                       # weights for controls
     # W_v = 10**5*np.diag([1.0, 1.0, 0.000001])       # weights for terminal state
-    W_v = 10**4*np.diag([1.0, 1.0, 0.001])       # weights for terminal state
+    W_v = 10**4*np.diag([1.0, 1.0, 0.001])          # weights for terminal state
     
     # while not rospy.get_param('/zenable', False):
     #     rospy.sleep(1)
     rospy.sleep(2)
-    cbf_gamma, obstacle, target = setup_scenario()   # Setup the scenario for the initial episode
-    nmpc = NMPC_CBF_Terminal(pos_fb, limitation, DT, N, W_q, W_r, W_v, cbf_gamma, obstacle)   # Create NMPC object
-    run_id = 1
-    ep_state = 1                                    # Episode state (0: waiting to start, 1: running, 2: at target, 3: collision)
-    vel_msg = Twist()                               # Initialize the velocity message
-    done = False                                    # Episode done flag
-    ep_record = RosbagRecorder(cbf_gamma,obstacle,target)                    # Create rosbag recorder object
-    ep_record.start_recording()                     # Start recording the episode
+    cbf_gamma, obstacle, target = setup_scenario()          # Setup the scenario for the initial episode
+    nmpc = NMPC_CBF_Terminal(pos_fb, 
+                             limitation, 
+                             DT, N, 
+                             W_q, W_r, W_v, 
+                             cbf_gamma, obstacle)           # Create NMPC object
+    run_id = 1                                              # Init runid to keep count of episodes
+    ep_state = 1                                            # Episode state (0: waiting to start, 1: running, 2: at target, 3: collision)
+    vel_msg = Twist()                                       # Initialize the velocity message
+    done = False                                            # Episode done flag
+    ep_record = RosbagRecorder(cbf_gamma,obstacle,target)   # Create rosbag recorder object
+    ep_record.start_recording()                             # Start recording the episode bag 
 
     while not rospy.is_shutdown():
         
         if ep_state == 0:                                       # If the episode is waiting to start from previous reset
             cbf_gamma, obstacle, target = setup_scenario()          # Setup the scenario for the next episode
             nmpc.reset_nmpc(obstacle, cbf_gamma)                    # Reset the NMPC for the next episode
-            ep_record.cbfgamma = cbf_gamma                         # Set the CBF parameter for recording
+            ep_record.cbfgamma = cbf_gamma                          # Set the CBF parameter for recording
             ep_record.obstacle = obstacle.flatten().tolist()        # Set the obstacle parameter for recording      
             ep_record.target = target.tolist()                      # Set the target parameter for recording
             ep_record.start_recording()                             # Start recording the episode
@@ -457,30 +466,34 @@ def nmpc_node():                    # Main function to run NMPC
         pos_fb = state_feedback(odom)                                           # Read feedback state
         ep_state, done = assess_if_done(target, pos_fb, obstacle, ep_state)     # Assess state of episode (target reached or collision)
         
-        if not done:                                                            # Run the NMPC until the episode is done
-            next_traj, next_cons = desired_trajectory(pos_fb, N, target)            # Generate the desired trajectory and control input
-            # tic = time.time()                                                     # Start the timer
-            try:                                                                    # Try to solve the NMPC problem                                 
-                vel = nmpc.solve(next_traj, next_cons)                                  # Solve the NMPC problem
-                # toc = (time.time() - tic)*1000                                          # Calculate the processing time in ms
-                # toc = min(int(toc), 5000)                                               # Limit the processing time to 5000ms
-                # pub_hb.publish(toc)                                                     # Publish the processing time to heartbeat topic
+        if not done:                                                        # Run the NMPC until the episode is done
+            next_traj, next_cons = desired_trajectory(pos_fb, N, target)        # Generate the desired trajectory and control input
+            # tic = time.time()                                                 # Start the timer
+            try:                                                                # Try to solve the NMPC problem                                 
+                vel = nmpc.solve(next_traj, next_cons)                          # Solve the NMPC problem
+                # toc = (time.time() - tic)*1000                                # Calculate the processing time in ms
+                # toc = min(int(toc), 5000)                                     # Limit the processing time to 5000ms
+                # pub_hb.publish(toc)                                           # Publish the processing time to heartbeat topic
             except:
                 kenny_loggins("[NMPC-Solve]: ERROR! NMPC Solver failed")
                 print(next_traj)
                 print(next_cons)
                 print(ep_state)
-                vel = [0.0, 0.0]                                                        # Set the control input to zero if NMPC fails
-            vel_msg.linear.x = vel[0]                                               # Set the linear veolcity                 
-            vel_msg.angular.z = vel[1]                                              # Set the angular velocity
-            pub_vel.publish(vel_msg)                                                # Publish the control input to husky
+                vel = [0.0, 0.0]                                                # Set the control input to zero if NMPC fails
+            vel_msg.linear.x = vel[0]                                           # Set the linear veolcity                 
+            vel_msg.angular.z = vel[1]                                          # Set the angular velocity
+            pub_vel.publish(vel_msg)                                            # Publish the control input to husky
 
-        else:                                                                # If done, reset the simulation for next episode
-            # pub_hb.publish(-1)                                                       # Publish zero processing time for done episode
-            reward = ep_record.stop_recording(ep_state)          # Stop recording the episode
-            ##### ADD PUB REWARD HERE
-            reset_simulation()                                                      # Reset the simulation for the next episode
-            ep_state = 0                                                            # Set the episode state to waiting to start
+        else:                                                               # If done flag is set, assess and reset the simulation for next episode
+            # pub_hb.publish(-1)                                                # Publish zero processing time for done episode
+            reward = ep_record.stop_recording(ep_state)                         # Stop recording the episode and get the reward
+            test_response = [reward,                                            # Test response vector to send to trainer
+                             ep_state, 
+                             cbf_gamma, 
+                             obstacle[2]]
+            pub_response.publish(Float32MultiArray(data=test_response))         # Send test result to trainer [ reward, ep_state, cbf_gamma, obs_rad]
+            reset_simulation()                                                  # Reset the simulation for the next episode
+            ep_state = 0                                                        # Set the episode state to waiting to start
         
         r.sleep()                                                               # Sleep for the rest of the time
 
