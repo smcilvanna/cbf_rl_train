@@ -79,6 +79,9 @@ class CustomEnv(gym.Env):
         print(f"[gym-step] Reward Value for CBF value {self.a} with obstacle radius {self.observation}m is : {reward}") # info
         terminated = True                                   # Episode is complete
         truncated = False                                   # Episode should not count towards the learning (if true)
+        if reward < 666:        # check for error run condition
+            truncated = True        # if reward is 666.666, episode is truncated
+            reward = 0              # set reward to 0 if episode is truncated (shouldnt count towards learning)
         info = {}
         
         return self.observation, reward, terminated, truncated, info
