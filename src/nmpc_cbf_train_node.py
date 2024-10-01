@@ -233,7 +233,7 @@ class RosbagRecorder:
         bagfile = self.rosbag_name + '.bag'             # Get the bag file name
         
         check_for_file = 0
-        while (not os.path.exists(bagfile)) or check_for_file < 10:    # Check if the bag file exists
+        while (not os.path.exists(bagfile)) and check_for_file < 10:    # Check if the bag file exists
             kenny_loggins(f"[NMPC-rosbag]: WARN! Bag file {bagfile} is not available. [{check_for_file}]")  # Log message to console
             check_for_file += 1
             rospy.sleep(1)
