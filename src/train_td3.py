@@ -42,7 +42,7 @@ def train_td3(learning_rate, gamma, batch_size, train_steps=100):
     model.learn(total_timesteps=train_steps,
                 callback=checkpoint_callback)                    # without tensorboard logging, with checkpoint callback
     
-    model.save("/home/user/husky/td3_models/td3_model")          # Save the model
+    model.save("/home/user/husky/td3_models/final/td3_model")          # Save the model
     return model
 
 if __name__ == "__main__":
