@@ -30,7 +30,7 @@ def train_td3(learning_rate, gamma, batch_size, train_steps=100):
     #     #tensorboard_log="./td3_tensorboard/"       # Path to the directory where TensorBoard logs will be saved, uncomment for logging
     #     tau=            0.05                        # Target network update coefficient, slightly larger for deterministic environment
     # )
-    model = TD3.load("/home/user/husky/td3_models/final/td3_model_650.zip", env=env)  # Load the model from the saved file
+    model = TD3.load("/home/user/husky/td3_models/final/td3_model_750.zip", env=env)  # Load the model from the saved file
     checkpoint_callback = CheckpointCallback(       # Callback to save the model and replay buffer every 10 steps/episodes
         save_freq=25, 
         save_path='/home/user/husky/td3_models/',
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     gamma     = 0.00
     batch     = 10
 
-    steps = 100
+    steps = 250
     model = train_td3(learning_rate=learnrate, 
                         gamma=gamma, 
                         batch_size=batch,
