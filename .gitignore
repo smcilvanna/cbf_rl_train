@@ -1,13 +1,14 @@
 #Ignore dirs
 data/
 src/.old/
-src/.temp
-
+src/.temp/
+src/__pycache__/
 
 #Ignore file types
 *.jpg
 *.bag
-
+*.old
+*.pyc
 
 #Ignore other files
 world/nhat.world

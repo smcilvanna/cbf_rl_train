@@ -21,7 +21,7 @@ def getyaw(odom):        # Convert quaternion to euler
     return round(wrap_yaw,2)
 
 def check_reset(tols=[0.02, 0.02, 0.2, 0.005]):
-    rospy.sleep(0.1)                                # sleep for a short time to allow husky to settle
+    rospy.sleep(0.3)                                # sleep for a short time to allow husky to settle
     xtol = tols[0]                                  # x position tolerance
     ytol = tols[1]                                  # y position tolerance
     ztol = tols[2]                                  # z position tolerance
@@ -89,6 +89,6 @@ if __name__ == "__main__":
         except (rospy.ServiceException) as e:                   # catch exception if service call fails
             rospy.logwarn("/gazebo/unpause_physics service call failed")
         rospy.sleep(0.05)                                       # sleep for a short time to allow husky to settle
-        done = check_reset([0.03, 0.03, 0.2, 0.01])             # check if reset is complete [x, y, z, yaw] (tolerances)
+        done = check_reset([0.02, 0.02, 0.2, 0.005])             # check if reset is complete [x, y, z, yaw] (tolerances)
         
     print("[RESET] Reset complete after {} attempts".format(rcnt))     # print number of attempts to reset
