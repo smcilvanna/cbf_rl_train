@@ -13,7 +13,7 @@ import rospy
 def train_td3(learning_rate, gamma, batch_size, train_steps=100):    
     env = gym.make('cbf-train-gzros')          # Create the environment
     n_actions = env.action_space.shape[-1]
-    action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=0.01 * np.ones(n_actions))  # Add minimum noise to the action space
+    action_noise = None #NormalActionNoise(mean=np.zeros(n_actions), sigma=0.01 * np.ones(n_actions))  # Add minimum noise to the action space
     model = TD3(                        # Define the TD3 model
         "MlpPolicy",                                # Policy type (multi-layer perceptron)
         env,                                        # the custom environment
@@ -53,7 +53,7 @@ if __name__ == "__main__":
     gamma     = 0.00
     batch     = 10
 
-    steps = 100
+    steps = 5000
     model = train_td3(learning_rate=learnrate, 
                         gamma=gamma, 
                         batch_size=batch,

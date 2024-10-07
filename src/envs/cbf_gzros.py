@@ -58,11 +58,11 @@ class CustomEnv(gym.Env):
         print(f"[gym-step] New step(episode) to test CBF value: {self.a} with obstacle radius: {self.observation}")
 
         # convert normalised action to actual action
-        test_action = 0.001 + (action + 1.0) * (1.50 - 0.001) / 2.0
+        test_action = 0.001 + (float(action) + 1.0) * (1.50 - 0.001) / 2.0
         test_action = round(test_action, 3)
 
         # convert normalised observation, which is sampled from observation space on reset to actual observation  (obstacle radius)
-        test_observation = 0.1 + (self.observation + 1.0) * (10.0 - 0.1) / 2.0
+        test_observation = 0.1 + (float(self.observation) + 1.0) * (10.0 - 0.1) / 2.0
         test_observation = round(test_observation, 1)
 
         readyfortest = False
