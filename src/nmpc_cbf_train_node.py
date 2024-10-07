@@ -226,7 +226,7 @@ class RosbagRecorder:
                 reward = -100.0                                                             # Set reward to -100 if episode is stopped due to collision
             elif ep_state == -1:                                                        # If stop is due to exit
                 reward = -666.123                                                           # Set reward to if episode is stopped due to exit (for log info)
-            print(f"\n\n\nCBF: {self.cbfgamma} \nObstacle: {self.obstacle[2]}m \nReward: {reward}\n\n\n")
+            print(f"\n\n####################################\nCBF: {self.cbfgamma} \nObstacle: {self.obstacle[2]}m \nReward: {reward}\n####################################\n\n")
             self.write_info(reward,ep_state)                                            # Write the episode info to the csv file
             return reward
         
@@ -405,7 +405,7 @@ def setup_scenario():                               # Setup the scenario for epi
     target = np.array([target_x, 0, 0])                 # define target [ x , y , theta ]
     # rospy.set_param('/obs_info', obstacle.tolist())     # Set the obstacle parameter
     # rospy.set_param('/tgt_info', target.tolist())       # Set the target parameter
-    kenny_loggins("\n[NMPC-SetEp]: New scenario | cbf_gamma: " + str(cbf_gamma) + ' obs: ' + str(obstacle) + ' tgt: ' +str(target) )
+    kenny_loggins("[NMPC-SetEp]: New scenario | cbf_gamma: " + str(cbf_gamma) + ' obs: ' + str(obstacle) + ' tgt: ' +str(target) + "\n" )
     return cbf_gamma, obstacle, target
 
 def reset_simulation():     # Reset the simulation for the next episode

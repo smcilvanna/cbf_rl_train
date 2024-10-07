@@ -33,8 +33,10 @@ class gymros:                                       # Class to create a queue fo
 class CustomEnv(gym.Env):
     def __init__(self):
         super(CustomEnv, self).__init__()
-        self.action_space = spaces.Box(low=0.001, high=1.50, shape=(1,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0.1, high=10.0, shape=(1,), dtype=np.float32)
+        # self.action_space = spaces.Box(low=0.001, high=1.50, shape=(1,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32)    # normalised action space
+        # self.observation_space = spaces.Box(low=0.1, high=10.0, shape=(1,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32) # normalised observation space
         self.observation = None #np.array([0.5], dtype=np.float32)  # Initialize observation attribute
         self.a = None
         self.r = None
@@ -45,7 +47,7 @@ class CustomEnv(gym.Env):
         if options == None:# if no options are provided, set the obstacle radius to a random value between 0 and 3
             # rand_obs = np.array([np.random.uniform(0, 3.0)], dtype=np.float32)
             # self.observation = rand_obs.round(1)
-            self.observation = self.observation_space.sample().round(1)
+            self.observation = self.observation_space.sample()
         else:
             self.observation = np.array([options['orad']], dtype=np.float32)
         info = {}
@@ -54,6 +56,15 @@ class CustomEnv(gym.Env):
     def step(self, action):
         self.a = action
         print(f"[gym-step] New step(episode) to test CBF value: {self.a} with obstacle radius: {self.observation}")
+
+        # convert normalised action to actual action
+        test_action = 0.001 + (action + 1.0) * (1.50 - 0.001) / 2.0
+        test_action = round(test_action, 3)
+
+        # convert normalised observation, which is sampled from observation space on reset to actual observation  (obstacle radius)
+        test_observation = 0.1 + (self.observation + 1.0) * (10.0 - 0.1) / 2.0
+        test_observation = round(test_observation, 1)
+
         readyfortest = False
         while not readyfortest:
             rospy.sleep(0.1)
@@ -65,16 +76,16 @@ class CustomEnv(gym.Env):
                     readyfortest = False                        # if it is positive, sequence error and so not ready
                     print(f"[gym-step] Possible out of sequence message, expected new test vector, got: {rsp}")
         print(f"[gym-step] Gazebo response: {rsp}")         # ready for new test at this point
-        test_scenario = [self.a, self.observation]          # create the test vector
+        test_scenario = [test_action, test_observation]          # create the test vector
         self.gymros.send_test_request(test_scenario)        # send the test vector to gazebo
         reward = None                                       # get ready to wait for reward response
         while reward == None:                               # until a reward is returned
             rospy.sleep(0.1)                                    # wait a bit
             if not self.gymros.is_empty():                      # if there is a message in the queue
                 response_from_gz = self.gymros.pop()                # get the response message
-                print(response_from_gz)                             # debug
-                print(type(response_from_gz))                       # debug
-                print(len(response_from_gz))                        # debug
+                # print(response_from_gz)                             # debug
+                # print(type(response_from_gz))                       # debug
+                # print(len(response_from_gz))                        # debug
                 if response_from_gz[2] > 0:                     # check if the cbf_value returned is positive
                     reward = float(response_from_gz[0])             # if so the reward is first element of response
         print(f"[gym-step] Reward Value for CBF value {self.a} with obstacle radius {self.observation}m is : {reward}") # info
