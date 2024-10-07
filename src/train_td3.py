@@ -32,7 +32,7 @@ def train_td3(learning_rate, gamma, batch_size, train_steps=100):
     )
 
     checkpoint_callback = CheckpointCallback(       # Callback to save the model and replay buffer every 10 steps/episodes
-        save_freq=10, 
+        save_freq=100, 
         save_path='/home/user/husky/td3_models/',
         name_prefix="td3_chkpt"
     )

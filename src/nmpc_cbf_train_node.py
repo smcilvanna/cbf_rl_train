@@ -220,10 +220,12 @@ class RosbagRecorder:
             
             kenny_loggins("[NMPC-rosbag]: Stopped rosbag recording")                    # Log info to console
             
-            if ep_state != -1.0:                                                        # If stop is not due to exit
+            if ep_state == 2:                                                           # If stop is due to reach target
                 reward = self.assess_episode(self.cbfgamma, self.obstacle, self.target)     # Assess the episode to return reward
-            else:
-                reward = -666.666                                                               # Set reward to -1 if episode is stopped due to exit
+            elif ep_state == 3:                                                         # If stop is due to collision
+                reward = -100.0                                                             # Set reward to -100 if episode is stopped due to collision
+            elif ep_state == -1:                                                        # If stop is due to exit
+                reward = -666.123                                                           # Set reward to if episode is stopped due to exit (for log info)
             print(f"\n\n\nCBF: {self.cbfgamma} \nObstacle: {self.obstacle[2]}m \nReward: {reward}\n\n\n")
             self.write_info(reward,ep_state)                                            # Write the episode info to the csv file
             return reward
@@ -270,7 +272,7 @@ class topicQueue:                                       # Class to create a queu
 
 def exit_handler():         # Exit handler for the node
     kenny_loggins("[NMPC-Exiting]: Shutting down Husky NMPC Node...")             # Log message to console
-    ep_record.stop_recording(ep_state=-1.0)                                          # Stop recording the episode
+    ep_record.stop_recording(ep_state=-1)                                          # Stop recording the episode
 
 def kenny_loggins(msg, logto=0, lvl=None):  # Danger Zone
     if logto == 0:                          # Print log messages to console
@@ -342,7 +344,7 @@ def state_feedback(odom):    # Read feedback state from odometry
 def assess_if_done(target, pos_fb, obstacle,ep_state):   # Assess if the episode is done (target reached or collision)}:
     # episode status states (0: waiting to start, 1: running, 2: at target, 3: collision)
     
-    collision_tol = 0.01                                    # Collision tolerance
+    collision_tol = 0.0                                     # Collision tolerance
     target_tol = 0.2                                        # Target tolerance
     tgt_sep = np.linalg.norm(pos_fb[:2] - target[:2])       # Distance to the target
     start_sep = np.linalg.norm(pos_fb[:2])                  # Distance to the start point

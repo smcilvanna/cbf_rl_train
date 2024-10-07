@@ -110,6 +110,7 @@ def calculate_distance(odom, obstacle, target):     # calculate the distance tra
     gx = target[0]
     p1 = np.sqrt( (ox)**2       + (orad + vrad)**2 )            # first leg distance  
     p2 = np.sqrt( (gx - ox)**2  + (orad + vrad)**2 ) - 0.2      # second leg distance - end tolerances
+
     p3 = 0
     est_opt_dist = p1 + p2 + p3
 
@@ -119,9 +120,10 @@ def calculate_distance(odom, obstacle, target):     # calculate the distance tra
     fin_yaw = odom[-1,2]
 
     # check for collision
-    safe_tol = 0.05
+    safe_tol = 0.00
     centre_sep = np.sqrt((positions[:, 0] - obstacle[0])**2 + (positions[:, 1] - obstacle[1])**2)
     safe_sep = centre_sep - obstacle[2] - vrad
+    safe_sep = safe_sep.round(3)
     collision = np.any(safe_sep < safe_tol)
 
     return total_distance, est_opt_dist, fin_sep, fin_yaw, collision
@@ -134,7 +136,10 @@ def get_reward(bag, cbf_gamma, obstacle, target):
     if collision:
         reward = -100
     elif fin_sep < 0.5:
-        reward = opt_dist/dist * 100
+        dreward = opt_dist/dist * 100
+        n = 8  # control the shape of the curve
+        reward = 100 * (dreward / 100)**n
+        reward = round(reward, 3)
     return reward
 
 def check_bag(bag):                             # check if all expected topics are present in the bag file

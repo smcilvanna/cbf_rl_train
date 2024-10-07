@@ -33,8 +33,8 @@ class gymros:                                       # Class to create a queue fo
 class CustomEnv(gym.Env):
     def __init__(self):
         super(CustomEnv, self).__init__()
-        self.action_space = spaces.Box(low=0, high=1.50, shape=(1,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=0, high=3.0, shape=(1,), dtype=np.float32)
+        self.action_space = spaces.Box(low=0.001, high=1.50, shape=(1,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0.1, high=10.0, shape=(1,), dtype=np.float32)
         self.observation = None #np.array([0.5], dtype=np.float32)  # Initialize observation attribute
         self.a = None
         self.r = None
@@ -43,8 +43,9 @@ class CustomEnv(gym.Env):
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         if options == None:# if no options are provided, set the obstacle radius to a random value between 0 and 3
-            rand_obs = np.array([np.random.uniform(0, 3.0)], dtype=np.float32)
-            self.observation = rand_obs.round(1)
+            # rand_obs = np.array([np.random.uniform(0, 3.0)], dtype=np.float32)
+            # self.observation = rand_obs.round(1)
+            self.observation = self.observation_space.sample().round(1)
         else:
             self.observation = np.array([options['orad']], dtype=np.float32)
         info = {}
