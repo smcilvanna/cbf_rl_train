@@ -30,20 +30,20 @@ def train_td3(learning_rate, gamma, batch_size, train_steps=100):
     #     #tensorboard_log="./td3_tensorboard/"       # Path to the directory where TensorBoard logs will be saved, uncomment for logging
     #     tau=            0.05                        # Target network update coefficient, slightly larger for deterministic environment
     # )
-    model = TD3.load("/home/user/husky/td3_models/final/td3_model_run2_6k.zip", env=env)  # Load the model from the saved file
+    model = TD3.load("/home/user/husky/td3_models/final/td3_model_run2_12k", env=env)  # Load the model from the saved file
     checkpoint_callback = CheckpointCallback(       # Callback to save the model and replay buffer every 10 steps/episodes
         save_freq=100, 
         save_path='/home/user/husky/td3_models/',
         name_prefix="td3_chkpt"
     )
-    model.load_replay_buffer("/home/user/husky/td3_models/final/td3_replay_buffer_run2_6k")  # Load the replay buffer
+    model.load_replay_buffer("/home/user/husky/td3_models/final/td3_replay_buffer_run2_12k")  # Load the replay buffer
     # Train the model
     #model.learn(total_timesteps=train_steps, log_interval=10)  # with tensorboard logging
     model.learn(total_timesteps=train_steps,
                 callback=checkpoint_callback)                    # without tensorboard logging, with checkpoint callback
     
-    model.save("/home/user/husky/td3_models/final/td3_model_run2_7k")          # Save the model
-    model.save_replay_buffer("/home/user/husky/td3_models/final/td3_replay_buffer_run2_7k")  # Save the replay buffer
+    model.save("/home/user/husky/td3_models/final/td3_model_run2_13k")          # Save the model
+    model.save_replay_buffer("/home/user/husky/td3_models/final/td3_replay_buffer_run2_13k")  # Save the replay buffer
     return model
 
 if __name__ == "__main__":
