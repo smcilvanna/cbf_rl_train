@@ -223,7 +223,7 @@ class RosbagRecorder:
             if ep_state == 2:                                                           # If stop is due to reach target
                 reward = self.assess_episode(self.cbfgamma, self.obstacle, self.target)     # Assess the episode to return reward
             elif ep_state == 3:                                                         # If stop is due to collision
-                reward = -100.0                                                             # Set reward to -100 if episode is stopped due to collision
+                reward = -1.0                                                             # Set reward to -100 if episode is stopped due to collision
             elif ep_state == -1:                                                        # If stop is due to exit
                 reward = -666.123                                                           # Set reward to if episode is stopped due to exit (for log info)
             print(f"\n\n####################################\nCBF: {self.cbfgamma} \nObstacle: {self.obstacle[2]}m \nReward: {reward}\n####################################\n\n")

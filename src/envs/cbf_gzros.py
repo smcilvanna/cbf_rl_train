@@ -34,9 +34,15 @@ class CustomEnv(gym.Env):
     def __init__(self):
         super(CustomEnv, self).__init__()
         # self.action_space = spaces.Box(low=0.001, high=1.50, shape=(1,), dtype=np.float32)
-        self.action_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32)    # normalised action space
+        # self.action_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32)    # normalised action space
+        self.action_space = spaces.Discrete(1000)   #discrete action space
+        self.actionValues = np.linspace(0.005,1.0,1000)
+
         # self.observation_space = spaces.Box(low=0.1, high=10.0, shape=(1,), dtype=np.float32)
-        self.observation_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32) # normalised observation space
+        # self.observation_space = spaces.Box(low=-1, high=1, shape=(1,), dtype=np.float32) # normalised observation space
+        self.observation_space = spaces.Discrete(25)
+        self.observationValues = np.arange(0.2, 5.2, 0.2)
+        
         self.observation = None #np.array([0.5], dtype=np.float32)  # Initialize observation attribute
         self.a = None
         self.r = None
@@ -55,19 +61,27 @@ class CustomEnv(gym.Env):
     
     def step(self, action):
         self.a = action
-        print(f"[gym-step] New step(episode) to test CBF value: {self.a} with obstacle radius: {self.observation}")
+        # # convert normalised action to actual action
+        # act_min = 0.01
+        # act_max = 0.7000
+        # test_action = act_min + (float(action) + 1.0) * (act_max - act_min) / 2.0
+        # test_action = round(test_action, 3)
+        
+        # convert discrete action to actual action
+        test_action = self.actionValues[action]
 
-        # convert normalised action to actual action
-        act_min = 0.01
-        act_max = 0.7000
-        test_action = act_min + (float(action) + 1.0) * (act_max - act_min) / 2.0
-        test_action = round(test_action, 3)
 
-        # convert normalised observation, which is sampled from observation space on reset to actual observation  (obstacle radius)
-        orad_min = 0.1
-        orad_max = 10.0
-        test_observation = orad_min + (float(self.observation) + 1.0) * (orad_max - orad_min) / 2.0
-        test_observation = round(test_observation, 1)
+        # # convert normalised observation, which is sampled from observation space on reset to actual observation  (obstacle radius)
+        # orad_min = 0.1
+        # orad_max = 10.0
+        # test_observation = orad_min + (float(self.observation) + 1.0) * (orad_max - orad_min) / 2.0
+        # test_observation = round(test_observation, 1)
+
+        # convert discrete observation to actual observation  (obstacle radius)
+        test_observation = self.observationValues[self.observation]
+
+        print(f"[gym-step] New step(episode) to test discrete action: {self.a}  with discrete observation: {self.observation}")
+        print(f"[gym-step] New step(episode) to test CBF value: {test_action}   with obstacle radius: {test_observation}m")
 
         readyfortest = False
         while not readyfortest:

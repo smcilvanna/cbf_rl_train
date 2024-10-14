@@ -7,12 +7,31 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 # from itertools import product
 # import time
 import numpy as np
-# import os
+import os
 import rospy
+
+class CustomCheckpointCallback(CheckpointCallback):
+    def __init__(self, save_freq, save_path, name_prefix='rl_model', verbose=1):
+        super(CustomCheckpointCallback, self).__init__(save_freq, save_path, name_prefix, verbose)
+
+    def _on_step(self) -> bool:
+        if self.n_calls % self.save_freq == 0:
+            # Save the model
+            path = os.path.join(self.save_path, f'{self.name_prefix}_{self.n_calls}_steps')
+            self.model.save(path)
+
+            # Save the replay buffer
+            replay_buffer_path = os.path.join(self.save_path, f'{self.name_prefix}_{self.n_calls}_replay_buffer')
+            self.model.save_replay_buffer(replay_buffer_path)
+
+            if self.verbose > 1:
+                print(f"Saving model and replay buffer to {path}")
+
+        return True
 
 def train_td3(learning_rate, gamma, batch_size, train_steps=100):    
     env = gym.make('cbf-train-gzros')          # Create the environment
-    n_actions = env.action_space.shape[-1]
+    # n_actions = env.action_space.shape[-1]
     action_noise = None #NormalActionNoise(mean=np.zeros(n_actions), sigma=0.01 * np.ones(n_actions))  # Add minimum noise to the action space
     model = TD3(                        # Define the TD3 model
         "MlpPolicy",                                # Policy type (multi-layer perceptron)
@@ -34,7 +53,7 @@ def train_td3(learning_rate, gamma, batch_size, train_steps=100):
     checkpoint_callback = CheckpointCallback(       # Callback to save the model and replay buffer every 10 steps/episodes
         save_freq=100, 
         save_path='/home/user/husky/td3_models/',
-        name_prefix="td3_chkpt"
+        name_prefix="td3_run3_chkpt"
     )
 
     # Train the model
@@ -42,7 +61,9 @@ def train_td3(learning_rate, gamma, batch_size, train_steps=100):
     model.learn(total_timesteps=train_steps,
                 callback=checkpoint_callback)                    # without tensorboard logging, with checkpoint callback
     
-    model.save("/home/user/husky/td3_models/final/td3_model")          # Save the model
+    model.save("/home/user/husky/td3_models/final/td3_run3_model_2k")          # Save the model
+    model.save_replay_buffer("/home/user/husky/td3_models/final/td3_run3_replay_buffer_2k")  # Save the replay buffer
+
     return model
 
 if __name__ == "__main__":

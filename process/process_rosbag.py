@@ -134,12 +134,12 @@ def get_reward(bag, cbf_gamma, obstacle, target):
     dist, opt_dist, fin_sep, fin_yaw, collision = calculate_distance(odom, obstacle, target)
     reward = 0.0
     if collision:
-        reward = -100
+        reward = -1
     elif fin_sep < 0.5:
-        dreward = opt_dist/dist * 100
+        dreward = opt_dist/dist
         n = 8  # control the shape of the curve
-        reward = 100 * (dreward / 100)**n
-        reward = round(reward, 3)
+        reward = (dreward)**n
+        reward = round(reward, 5)
     return reward
 
 def check_bag(bag):                             # check if all expected topics are present in the bag file
