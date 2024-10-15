@@ -2,7 +2,7 @@
 from gymnasium.envs.registration import register
 
 # Import your environment class
-from envs.cbf_gzros import CustomEnv  # Adjust the import path accordingly
+from cbf_rl_train.src.envs.cbf_gzros_dqn import CustomEnv  # Adjust the import path accordingly
 
 # # Register the custom environment with Gymnasium
 # register(
@@ -19,6 +19,12 @@ from envs.cbf_gzros import CustomEnv  # Adjust the import path accordingly
 
 register(
     id='cbf-train-gzros',  # Unique identifier for the environment
-    entry_point='envs.cbf_gzros:CustomEnv',  # Corrected path
+    entry_point='envs.cbf_gzros_dqn:CustomEnv',  # Corrected path
+    max_episode_steps=1,  # Maximum number of steps per episode
+)
+
+register(
+    id='cbf-train-gzros',  # Unique identifier for the environment
+    entry_point='envs.cbf_gzros_td3:CustomEnv',  # Corrected path
     max_episode_steps=1,  # Maximum number of steps per episode
 )
