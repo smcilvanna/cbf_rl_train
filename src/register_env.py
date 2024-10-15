@@ -18,13 +18,13 @@ from cbf_rl_train.src.envs.cbf_gzros_dqn import CustomEnv  # Adjust the import p
 # )
 
 register(
-    id='cbf-train-gzros',  # Unique identifier for the environment
+    id='cbf-train-gzros-dqn',  # Unique identifier for the environment
     entry_point='envs.cbf_gzros_dqn:CustomEnv',  # Corrected path
     max_episode_steps=1,  # Maximum number of steps per episode
 )
 
 register(
-    id='cbf-train-gzros',  # Unique identifier for the environment
+    id='cbf-train-gzros-td3',  # Unique identifier for the environment
     entry_point='envs.cbf_gzros_td3:CustomEnv',  # Corrected path
     max_episode_steps=1,  # Maximum number of steps per episode
 )
