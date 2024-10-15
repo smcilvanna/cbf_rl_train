@@ -60,16 +60,16 @@ class CustomEnv(gym.Env):
 
     def step(self, action):
         self.a = action
-        print(f"[gym-step] New step(episode) to test CBF value: {self.a} with obstacle radius: {self.observation}")
         test_action = self.getTestAction()
         test_observation = self.getTestObservation()
-
-        if test_action > self.maxActPerObs[self.observation]:   # check if action is greater than max action for the observation
+        print(f"[gym-step] NEW TEST: Action: {self.a} for observation : {self.observation}")
+        print(f"[gym-step] NEW TEST: CBF   : {test_action} for obstacle radius: {test_observation}m")
+        if test_action >= self.maxActPerObs[self.observation]:   # check if action is greater than max action for the observation
             rospy.sleep(0.1)
             terminated = True                                   # Episode is complete
             truncated = True                                    # Episode should not count towards the learning (if true)
             reward = 0                                          # set reward to 0 if episode is truncated (shouldnt count towards learning)
-            print(f"[gym-step] Action {test_action} is greater than max action {self.maxActPerObs[self.observation]} for obstacle radius {test_observation}m\n >> Skipping and Truncating This Test!") # info
+            print(f"[gym-step] Action {test_action} is greater than max action {self.maxActPerObs[self.observation]} previously failed for obstacle radius {test_observation}m\n >> Skipping and Truncating This Test!") # info
         else:
             readyfortest = False
             while not readyfortest:
@@ -102,11 +102,11 @@ class CustomEnv(gym.Env):
         return self.observation, reward, terminated, truncated, info
 
     def render(self, mode='human'):
-        print(f"Reward Value for CBF value {self.a} with obstacle radius {self.observation}m is : {self.r}")
+        print(f"Reward Value for action {self.a} with observation {self.observation}m is : {self.r}")
 
     def getTestAction(self):
         # returns the actual action value from the normalised action value (must be updated in self.a before calling this)
-        return self.cbf_min + (float(self.a) + 1.0) * (self.cbf_max - self.cbf_min) / 2.0
+        return round(self.cbf_min + (float(self.a) + 1.0) * (self.cbf_max - self.cbf_min) / 2.0, 3)
     
     def getTestObservation(self):
         # returns the test obstacle radius from the discrete observation space value
