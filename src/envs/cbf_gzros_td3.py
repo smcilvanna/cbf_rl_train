@@ -67,9 +67,9 @@ class CustomEnv(gym.Env):
         if test_action >= self.maxActPerObs[self.observation]:   # check if action is greater than max action for the observation
             rospy.sleep(0.1)
             terminated = True                                   # Episode is complete
-            truncated = True                                    # Episode should not count towards the learning (if true)
-            reward = 0                                          # set reward to 0 if episode is truncated (shouldnt count towards learning)
-            print(f"[gym-step] Action {test_action} is greater than max action {self.maxActPerObs[self.observation]} previously failed for obstacle radius {test_observation}m\n >> Skipping and Truncating This Test!") # info
+            truncated = False                                    # Episode should not count towards the learning (if true)
+            reward = -1.0                                          # set reward to 0 if episode is truncated (shouldnt count towards learning)
+            print(f"\n\n[gym-step] >>>>>>> Action {test_action} is greater than max action {self.maxActPerObs[self.observation]} previously failed for obstacle radius {test_observation}m\n >>>>>>>>>> Skipping and Truncating This Test!\n\n\n") # info
         else:
             readyfortest = False
             while not readyfortest:

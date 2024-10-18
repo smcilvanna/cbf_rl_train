@@ -16,13 +16,6 @@ register(
 )
 #############################################################################
 
-
-
-
-
-
-
-
 class CustomCheckpointCallback(CheckpointCallback):
     def __init__(self, save_freq, save_path, name_prefix='rl_model', verbose=1):
         super(CustomCheckpointCallback, self).__init__(save_freq, save_path, name_prefix, verbose)
