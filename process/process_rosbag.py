@@ -137,7 +137,7 @@ def get_reward(bag, cbf_gamma, obstacle, target):
         reward = -1
     elif fin_sep < 0.5:
         dreward = opt_dist/dist
-        n = 8  # control the shape of the curve
+        n = 10  # control the shape of the curve
         reward = (dreward)**n
         reward = round(reward, 5)
     return reward
