@@ -99,7 +99,7 @@ class NMPC_CBF_Terminal:
                 st_next = self.opt_states[i+1,:]
                 h = (st[0]-self.SO[j,0])**2+(st[1]-self.SO[j,1])**2-(self.R_husky+self.SO[j,2])**2
                 h_next = (st_next[0]-self.SO[j,0])**2+(st_next[1]-self.SO[j,1])**2-(self.R_husky+self.SO[j,2])**2
-                self.opt.subject_to(h_next-(self.cbf_gamma)*h >= 0) 
+                self.opt.subject_to(h_next-(1-self.cbf_gamma)*h >= 0) 
 
         # constraint the change of velocity
         for i in range(self.N-1):

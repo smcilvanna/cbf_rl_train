@@ -82,7 +82,9 @@ def get_test_set():         # Get the test set from the trainer
     # obs_radii = np.array([1.0])
 
     # cbf_gammas = np.array([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0,1.5])
-    cbf_gammas = generate_test_set(start=0, step=0.1, stop=10, iterations=3)
+    cbf_gammas = generate_test_set(start=0, step=0.1, stop=1, iterations=5)
+    # cbf_gammas = np.arange(0, 10.2, 0.25)
+    # cbf_gammas = np.delete(cbf_gammas, 0)
     obs_radii = np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0])
 
 
@@ -92,7 +94,7 @@ def get_test_set():         # Get the test set from the trainer
     # print("[TRAINER] Test Array Shape : ", combinations.shape) 
     return combinations
 
-def generate_test_set(start=0, step=0.1, stop=10, iterations=3):
+def generate_test_set(start=0, step=0.1, stop=1, iterations=5):
     all_numbers = []
     first_start = start
     first_stop = stop
@@ -150,11 +152,11 @@ def trainer_node():                                                         # Ma
         while response.is_empty():              # wait for response from trainer
             rospy.sleep(0.1)                        # wait here until trainer responds
         rsp = response.pop()                    # pop the prompt from the queue
-        if rsp[0] < 0:                          # check if response is a prompt 
-            if manual_entry:                    # check if manual entry is enabled
-                cbf_gamma = None                # initialize cbf_gamma
-                obs_radius = None               # initialize obs_radius     
-                while cbf_gamma is None:        # loop until cbf_gamma is entered correctly
+        if (rsp[0]==-1 and rsp[1]==-1 and rsp[2]==-1) :     # check if response is a prompt 
+            if manual_entry:                                    # check if manual entry is enabled
+                cbf_gamma = None                                # initialize cbf_gamma
+                obs_radius = None                               # initialize obs_radius     
+                while cbf_gamma is None:                        # loop until cbf_gamma is entered correctly
                     cbf_gamma = input("New Test Scenario Requested, what cbf_gamma value to test? : ")
                     try:
                         cbf_gamma = float(cbf_gamma)
