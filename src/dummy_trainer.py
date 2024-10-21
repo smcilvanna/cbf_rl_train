@@ -81,17 +81,18 @@ def get_test_set():         # Get the test set from the trainer
     # cbf_gammas = np.array([0.5, 0.5, 0.5, 0.5, 0.5])
     # obs_radii = np.array([1.0])
 
-    cbf_gammas = np.array([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0,1.5])
-    obs_radii = np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 10.0])
+    # cbf_gammas = np.array([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0,1.5])
+    cbf_gammas = generate_test_set(start=0, step=0.1, stop=10, iterations=3)
+    obs_radii = np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0])
 
 
     grid1, grid2 = np.meshgrid(cbf_gammas, obs_radii)
     combinations = np.column_stack([grid1.ravel(), grid2.ravel()])
     # combinations = np.row_stack([combinations, combinations, combinations])
-    print("[TRAINER] Test Array Shape : ", combinations.shape) 
+    # print("[TRAINER] Test Array Shape : ", combinations.shape) 
     return combinations
 
-def generate_test_set(start=0, step=0.1, stop=10, iterations=15):
+def generate_test_set(start=0, step=0.1, stop=10, iterations=3):
     all_numbers = []
     first_start = start
     first_stop = stop
@@ -136,8 +137,8 @@ def setup_scenario(test):                          # Get obstacle and target pos
 
 def trainer_node():                                                         # Main function to run NMPC
     manual_entry = False                                                         # Enable manual entry of test scenarios                             
-    # test_set= get_test_set()                                                    # Get the test set          
-    test_set = generate_test_set(start=0, step=0.1, stop=10, iterations=15)      # Generate the test set
+    test_set= get_test_set()                                                    # Get the test set          
+    # test_set = generate_test_set(start=0, step=0.1, stop=10, iterations=15)      # Generate the test set
     print(f"\n\n########[TRAINER]########\nStarting {test_set.shape[0]} tests\n#########################\n\n")                                  # Print the test set
     rospy.init_node("dummy_trainer", anonymous=True)                            # Init ROS node
     pub_request= rospy.Publisher('/request', Float32MultiArray, queue_size=10)  # Publisher for request
