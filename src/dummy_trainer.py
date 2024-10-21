@@ -91,6 +91,40 @@ def get_test_set():         # Get the test set from the trainer
     print("[TRAINER] Test Array Shape : ", combinations.shape) 
     return combinations
 
+def generate_test_set(start=0, step=0.1, stop=10, iterations=15):
+    all_numbers = []
+    first_start = start
+    first_stop = stop
+    current_start = start
+    current_step = step
+    current_stop = stop
+    
+    for _ in range(iterations):
+        # Generate the current set of numbers
+        current_numbers = np.arange(current_start, current_stop + current_step, current_step)
+        
+        # Ensure the stop value is included
+        if current_numbers[-1] > current_stop:
+            current_numbers = current_numbers[:-1]
+        
+        # Convert to list and remove duplicates
+        current_numbers_set = set(current_numbers.round(5))
+        
+        # Remove any numbers that are already in the all_numbers list
+        current_numbers_set.difference_update(all_numbers)
+        
+        # Append unique numbers to the all_numbers list
+        all_numbers.extend([num for num in current_numbers if num in current_numbers_set])
+        
+        # Update for the next iteration
+        current_step /= 2
+        current_start = first_start + current_step
+        current_stop  = first_stop - current_step
+    
+    return np.array(all_numbers[1:])
+
+
+
 def setup_scenario(test):                          # Get obstacle and target positions for the test scenario 
     husky_radius = 0.55                                 # Husky robot radius
     orad = test[1]                                      # Get the CBF parameter and obstacle radius from the trainer for next episode
@@ -102,15 +136,14 @@ def setup_scenario(test):                          # Get obstacle and target pos
 
 def trainer_node():                                                         # Main function to run NMPC
     manual_entry = False                                                         # Enable manual entry of test scenarios                             
-    test_set= get_test_set()                                                    # Get the test set          
+    # test_set= get_test_set()                                                    # Get the test set          
+    test_set = generate_test_set(start=0, step=0.1, stop=10, iterations=15)      # Generate the test set
+    print(f"\n\n########[TRAINER]########\nStarting {test_set.shape[0]} tests\n#########################\n\n")                                  # Print the test set
     rospy.init_node("dummy_trainer", anonymous=True)                            # Init ROS node
     pub_request= rospy.Publisher('/request', Float32MultiArray, queue_size=10)  # Publisher for request
     response = topicQueue('/response', Float32MultiArray)                       # Subscriber queue for response
     r = rospy.Rate(10)                                                          # Rate of the node                
-    
     # obstacle = GazeboCylinderManager()
-    
-    
     test_idx = 0                                                                # Initialize test index
     while not rospy.is_shutdown():
         while response.is_empty():              # wait for response from trainer

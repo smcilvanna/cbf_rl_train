@@ -1,0 +1,39 @@
+DQN Model Training (3700)
+
+
+
+
+##################################################
+#### Run 371 : 
+##################################################
+
+Continued 2024-10-20 : 5000ep
+Rosbag : 002
+Model : dqn_run372_model.zip
+
+Started 2024-10-20, 5000ep
+Rosbag : 001
+
+    learning_rate=          5e-4,
+    gamma=                  0.00,
+    batch_size=             32,
+    buffer_size=            10000,
+    learning_starts=        1,
+    target_update_interval= 20,
+    policy_kwargs=          dict(net_arch=[64, 64]),
+    exploration_fraction=   0.1,
+    exploration_initial_eps=1.0,
+    exploration_final_eps=  0.1
+
+    Reward
+    dreward = opt_dist/dist
+    n = 8  # control the shape of the curve
+    reward = (dreward)**n
+    reward = round(reward, 5)
+
+
+##################################################
+#### Run 1 : 
+##################################################
+
+OLD data, pre 2024-10-20 ignore.

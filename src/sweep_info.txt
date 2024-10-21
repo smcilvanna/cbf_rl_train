@@ -1,0 +1,5 @@
+
+
+# 2024-10-21
+Generate test set for corrected cbf_gamma
+start=0, step=0.1, stop=10, iterations=15
