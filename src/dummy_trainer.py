@@ -82,9 +82,11 @@ def get_test_set():         # Get the test set from the trainer
     # obs_radii = np.array([1.0])
 
     # cbf_gammas = np.array([0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1.0,1.5])
-    cbf_gammas = generate_test_set(start=0, step=0.1, stop=1, iterations=5)
     # cbf_gammas = np.arange(0, 10.2, 0.25)
     # cbf_gammas = np.delete(cbf_gammas, 0)
+
+    cbf_gammas = generate_test_set(start=0, step=0.1, stop=1, iterations=10)
+    cbf_gammas = cbf_gammas[136:]
     obs_radii = np.array([0.5, 1.0, 2.0, 3.0, 4.0, 5.0])
 
 
@@ -125,8 +127,6 @@ def generate_test_set(start=0, step=0.1, stop=1, iterations=5):
         current_stop  = first_stop - current_step
     
     return np.array(all_numbers[1:])
-
-
 
 def setup_scenario(test):                          # Get obstacle and target positions for the test scenario 
     husky_radius = 0.55                                 # Husky robot radius
