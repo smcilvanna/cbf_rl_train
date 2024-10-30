@@ -33,7 +33,7 @@ class CustomCheckpointCallback(CheckpointCallback):
                 print(f"Saving model and replay buffer to {path}")
         return True
 
-def train_td3(learning_rate= 1e-3, gamma= 0.00, batch_size= 32, train_steps=100):    
+def train_td3(train_steps=100):    
     env = gym.make('cbf-train-gzros-td3')                               # Create the environment
     n_acions = env.action_space.shape[-1]                               # Number of actions (for action noise parameter)
     tb_path = "/home/user/husky/tensorboard/td3"                        # Path to the directory where TensorBoard logs will be saved
@@ -42,14 +42,14 @@ def train_td3(learning_rate= 1e-3, gamma= 0.00, batch_size= 32, train_steps=100)
     model = TD3(                                          # Define the TD3 model
         "MlpPolicy",                                        # Policy type (multi-layer perceptron)
         env,                                                # the custom environment
-        learning_rate=          learning_rate,              # Learning rate passed as an argument
-        gamma=                  gamma,                      # Discount factor passed as an argument
-        batch_size=             batch_size,                 # Batch size for training
+        learning_rate=          5e-4,              # Learning rate passed as an argument
+        gamma=                  0.00,                      # Discount factor passed as an argument
+        batch_size=             32,                 # Batch size for training
         action_noise=           action_noise,               # Action noise (minimal noise)
         policy_kwargs=          dict(net_arch=[64, 64]),    # Policy network architecture ######## COULD CONSIDER ADDING : learning_rate_actor=1e-3, learning_rate_critic=1e-4 for separate learning rates 
         tensorboard_log=        tb_path,                    # Tensorboard path
         verbose=                1,                          # Verbosity mode
-        buffer_size=            5000,                       # Replay buffer size
+        buffer_size=            10000,                       # Replay buffer size
         learning_starts=        1,                          # Number of steps before training starts
         policy_delay=           2,                          # Policy update delay 2 : actor (policy) network is updated once for every two updates of the critic (Q) network, allows the critic to better estimate the value function before updating the policy
         target_policy_noise=    0.2,                        # Adds noise to target actions which promotes exploration during updates, helping avoid local optima
@@ -74,8 +74,41 @@ def train_td3(learning_rate= 1e-3, gamma= 0.00, batch_size= 32, train_steps=100)
     return model
 
 if __name__ == "__main__":
-    run_id = 6                                      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Run ID for file tag - CHANGE EVERY TRAINING SESSION !!!!!!!!!
+    run_id = 7                                      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Run ID for file tag - CHANGE EVERY TRAINING SESSION !!!!!!!!!
     rospy.init_node('gymnode', anonymous=True)      # Initialize the node
-    steps = 20000                                    # Number of training steps
+    steps = 2000                                    # Number of training steps
     model = train_td3(train_steps=steps)            # Train the TD3 model
     print(">>>>>>>>>>>>>===============<<<<<<<<<<<<<<\n           TRAINING COMPLETE!             \n>>>>>>>>>>>>>===============<<<<<<<<<<<<<<")
+
+
+
+
+
+
+##########################################################################################################################################################################################
+# Run 6
+
+# def train_td3(learning_rate= 1e-3, gamma= 0.00, batch_size= 32, train_steps=100):    
+#     env = gym.make('cbf-train-gzros-td3')                               # Create the environment
+#     n_acions = env.action_space.shape[-1]                               # Number of actions (for action noise parameter)
+#     tb_path = "/home/user/husky/tensorboard/td3"                        # Path to the directory where TensorBoard logs will be saved
+#     action_noise = NormalActionNoise(mean=np.zeros(n_acions),
+#                                       sigma=0.2 * np.ones(n_acions))    # Action noise to explore the environment, increase sigma for more noise/exploration
+#     model = TD3(                                          # Define the TD3 model
+#         "MlpPolicy",                                        # Policy type (multi-layer perceptron)
+#         env,                                                # the custom environment
+#         learning_rate=          learning_rate,              # Learning rate passed as an argument
+#         gamma=                  gamma,                      # Discount factor passed as an argument
+#         batch_size=             batch_size,                 # Batch size for training
+#         action_noise=           action_noise,               # Action noise (minimal noise)
+#         policy_kwargs=          dict(net_arch=[64, 64]),    # Policy network architecture ######## COULD CONSIDER ADDING : learning_rate_actor=1e-3, learning_rate_critic=1e-4 for separate learning rates 
+#         tensorboard_log=        tb_path,                    # Tensorboard path
+#         verbose=                1,                          # Verbosity mode
+#         buffer_size=            5000,                       # Replay buffer size
+#         learning_starts=        1,                          # Number of steps before training starts
+#         policy_delay=           2,                          # Policy update delay 2 : actor (policy) network is updated once for every two updates of the critic (Q) network, allows the critic to better estimate the value function before updating the policy
+#         target_policy_noise=    0.2,                        # Adds noise to target actions which promotes exploration during updates, helping avoid local optima
+#         tau=                    0.05                        # Target network update coefficient, slightly larger for deterministic environment
+#     )
+
+    ##########################################################################################################################################################################################

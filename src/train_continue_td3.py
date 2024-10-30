@@ -29,8 +29,11 @@ class CustomCheckpointCallback(CheckpointCallback):
 
 def train_td3(train_steps):    
     env = gym.make('cbf-train-gzros-td3')                                               # Create the environment
-    model =         TD3.load("/home/user/husky/td3_models/final/td3_run5_model_33994", env=env)   # Load the model from the saved file
-    model.load_replay_buffer("/home/user/husky/td3_models/final/td3_run5_replay_buffer_33994")    # Load the replay buffer
+    maxActnp = np.load("/home/user/husky/td3_models/final/td3_run7_1999_max_action.npy")          # Load max action array
+    env.maxActPerObs = maxActnp             # Apply max action array to env
+    
+    model =         TD3.load("/home/user/husky/td3_models/final/td3_run7_model_1999", env=env)   # Load the model from the saved file
+    model.load_replay_buffer("/home/user/husky/td3_models/final/td3_run7_replay_buffer_1999")    # Load the replay buffer
     
     checkpoint_callback = CustomCheckpointCallback(       # Custom callback to save the model and replay buffer during training in case of crash
         save_freq=100, 
@@ -48,9 +51,9 @@ def train_td3(train_steps):
     return model
 
 if __name__ == "__main__":
-    run_id = 5                                      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Run ID for file tag - CHANGE EVERY TRAINING SESSION !!!!!!!!!
+    run_id = 7                                      # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Run ID for file tag - CHANGE EVERY TRAINING SESSION !!!!!!!!!
     rospy.init_node('gymnode', anonymous=True)      # Initialize the node
-    steps = 5000
+    steps = 3000
     model = train_td3(train_steps=steps)
     print(">>>>>>>>>>>>>===============<<<<<<<<<<<<<<\n           TRAINING COMPLETE!             \n>>>>>>>>>>>>>===============<<<<<<<<<<<<<<")
 
