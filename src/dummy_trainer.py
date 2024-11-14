@@ -138,7 +138,7 @@ def setup_scenario(test):                          # Get obstacle and target pos
     return obstacle_x, target_x
 
 def trainer_node():                                                         # Main function to run NMPC
-    manual_entry = False                                                         # Enable manual entry of test scenarios                             
+    manual_entry = True                                                         # Enable manual entry of test scenarios                             
     test_set= get_test_set()                                                    # Get the test set          
     # test_set = generate_test_set(start=0, step=0.1, stop=10, iterations=15)      # Generate the test set
     print(f"\n\n########[TRAINER]########\nStarting {test_set.shape[0]} tests\n#########################\n\n")                                  # Print the test set

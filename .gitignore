@@ -3,6 +3,7 @@ data/
 src/.old/
 src/.temp/
 src/__pycache__/
+*.vscode/
 
 #Ignore file types
 *.jpg
